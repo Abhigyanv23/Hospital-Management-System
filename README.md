@@ -19,7 +19,7 @@
 * **Smart Prescriptions:** Transactional system that deducts medicine from **Inventory** instantly upon prescription.
 * **Digital Medical Records:** Create diagnoses, treatment plans, and upload attachments (X-Rays/Reports).
 * **Patient Directory:** Searchable history of all treated patients with one-click access to records.
-* **Compliance Tracking:** Unique "Health Score" system (0-100) to monitor patient adherence.
+* **Compliance Tracking:** Unique "Compliance Score" system (0-100) to monitor patient adherence.
 
 ###  Receptionist (Admin) Console
 * **Operational Analytics:** Visual charts for **"Peak Visiting Hours"**.
