@@ -36,11 +36,12 @@ const getHeaders = (isMultipart = false) => {
 export const api = {
   // --- AUTHENTICATION ---
   auth: {
-    sendOtp: (phone) => 
+    // 🔴 UPDATED: Now accepts and sends both phone and email
+    sendOtp: (phone, email) => 
       fetch(`${API_BASE_URL}/send-otp`, { 
         method: 'POST', 
         headers: getHeaders(), 
-        body: JSON.stringify({ phone }) 
+        body: JSON.stringify({ phone, email }) 
       }).then(handleResponse),
 
     loginPatient: (phone, password) => 
@@ -135,7 +136,7 @@ export const api = {
         body: JSON.stringify({ status: 'Paid' }) 
       }).then(handleResponse),
 
-    // --- 🔴 NEW: RAZORPAY ENDPOINTS ---
+    // --- RAZORPAY ENDPOINTS ---
     createOrder: (bill_id) => 
       fetch(`${API_BASE_URL}/payments/create-order`, { 
         method: 'POST', 

@@ -3,33 +3,17 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
-const twilio = require('twilio');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// --- NEW: IMPORT OUR EMAIL SERVICE ---
 const { sendWelcomeEmail } = require('../utils/emailService');
 
-// ==========================================
-// 📱 TWILIO CONFIGURATION (For SMS OTP)
-// ==========================================
-const accountSid = 'YOUR_TWILIO_ACCOUNT_SID'; 
-const authToken = 'YOUR_TWILIO_AUTH_TOKEN'; 
-const twilioPhoneNumber = 'YOUR_TWILIO_PHONE_NUMBER';
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_hospital_key_2025';
 
-const JWT_SECRET = 'your_super_secret_hospital_key_2025';
-
-let client = null;
-if (accountSid.startsWith('AC')) {
-    client = new twilio(accountSid, authToken);
-} else {
-    console.log("⚠️ Twilio credentials not found. Running in MOCK MODE (SMS OTPs will appear in console).");
-}
-
-const otpStore = {}; // In-Memory store for SMS OTPs
+const otpStore = {}; // In-Memory store for Email OTPs
 
 // ==========================================
-// 📧 NODEMAILER CONFIGURATION (For Email Reset)
+// 📧 NODEMAILER CONFIGURATION 
 // ==========================================
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -41,6 +25,33 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// Email Template for Registration OTP
+const sendRegistrationOtpEmail = async (to, otp) => {
+    const mailOptions = {
+        from: `"Pulse HMS Registration" <${process.env.SMTP_USER}>`,
+        to: to,
+        subject: 'Your Registration Code - Pulse HMS',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #4F46E5;">Welcome to Pulse HMS!</h2>
+                <p>To complete your registration, please use the following One-Time Password (OTP):</p>
+                <h1 style="background: #f3f4f6; padding: 10px 20px; display: inline-block; letter-spacing: 5px; border-radius: 8px;">${otp}</h1>
+                <p>This code expires in <strong>10 minutes</strong>.</p>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`📧 Registration OTP sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error("❌ Email Error:", error);
+        return false;
+    }
+};
+
+// Email Template for Password Reset
 const sendResetEmail = async (to, otp) => {
     const mailOptions = {
         from: `"Pulse HMS Support" <${process.env.SMTP_USER}>`,
@@ -68,33 +79,42 @@ const sendResetEmail = async (to, otp) => {
 };
 
 // ==========================================
-// 1. REGISTRATION ROUTES
+// 1. REGISTRATION ROUTES (NOW USING EMAIL)
 // ==========================================
 
-// Send SMS OTP
+// Send Email OTP
 router.post('/send-otp', async (req, res) => {
-    const { phone } = req.body;
-    if (!phone || phone.length !== 10) return res.status(400).json({ error: 'Invalid phone number. Must be 10 digits.' });
+    // 🔴 CHANGED: We now require the email to send the OTP
+    const { email, phone } = req.body;
+    
+    if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: 'Please enter a valid email address first.' });
+    }
 
     try {
-        // 🔴 LOWERCASE FIX applied here
-        const [exists] = await pool.query('SELECT * FROM patient WHERE phone = ?', [phone]);
-        if (exists.length > 0) return res.status(409).json({ error: 'Phone number already registered. Please login.' });
+        // Check if email already exists
+        const [emailExists] = await pool.query('SELECT * FROM patient WHERE email = ?', [email]);
+        if (emailExists.length > 0) return res.status(409).json({ error: 'Email already registered. Please login.' });
+
+        // Check if phone already exists (if they typed it in)
+        if (phone) {
+            const [phoneExists] = await pool.query('SELECT * FROM patient WHERE phone = ?', [phone]);
+            if (phoneExists.length > 0) return res.status(409).json({ error: 'Phone number already registered.' });
+        }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore[phone] = otp;
+        otpStore[email] = otp; // Store OTP mapped to email
 
-        if (client) {
-            await client.messages.create({ body: `Your Hospital Code: ${otp}`, from: twilioPhoneNumber, to: `+91${phone}` });
+        const emailSent = await sendRegistrationOtpEmail(email, otp);
+        
+        if (emailSent) {
+            res.json({ message: 'OTP sent to your email!' });
         } else {
-            console.log(`=============================================`);
-            console.log(`🔐 [MOCK SMS OTP] For ${phone}: ${otp}`);
-            console.log(`=============================================`);
+            res.status(500).json({ error: 'Failed to send OTP email.' });
         }
-        res.json({ message: 'OTP sent successfully!' });
     } catch (error) {
         console.error("OTP Error:", error);
-        res.status(500).json({ error: 'Failed to send OTP.' });
+        res.status(500).json({ error: 'Server error while sending OTP.' });
     }
 });
 
@@ -104,17 +124,17 @@ router.post('/patients', async (req, res) => {
     
     if (!name || !email || !phone || !password || !otp) return res.status(400).json({ error: 'Missing required fields.' });
 
-    if (otpStore[phone] !== otp) return res.status(400).json({ error: 'Invalid or expired OTP.' });
+    // 🔴 CHANGED: Check the OTP against the email instead of the phone
+    if (otpStore[email] !== otp) return res.status(400).json({ error: 'Invalid or expired OTP.' });
 
     try {
         const hash = await bcrypt.hash(password, 10);
         
-        // 🔴 LOWERCASE FIX applied here
         const [result] = await pool.query(
             'INSERT INTO patient (name, email, age, gender, phone, address, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)', 
             [name, email, age, gender, phone, address, hash]
         );
-        delete otpStore[phone]; 
+        delete otpStore[email]; 
 
         sendWelcomeEmail(email, name);
 
@@ -133,14 +153,12 @@ router.post('/patients', async (req, res) => {
 // ==========================================
 // 2. LOGIN ROUTES
 // ==========================================
-
 router.post('/patients/login', async (req, res) => {
     const { phone, password } = req.body; 
     if (!phone || !password) return res.status(400).json({ error: 'Required fields missing.' });
 
     try {
         const isEmail = phone.includes('@');
-        // 🔴 LOWERCASE FIX applied here
         const query = isEmail ? 'SELECT * FROM patient WHERE email = ?' : 'SELECT * FROM patient WHERE phone = ?';
         
         const [patients] = await pool.query(query, [phone]);
@@ -164,7 +182,6 @@ router.post('/staff/login', async (req, res) => {
     if (!id || !password || !role) return res.status(400).json({ error: 'Missing credentials.' });
 
     try {
-        // 🔴 LOWERCASE FIX applied here
         const table = role === 'Doctor' ? 'doctor' : 'staff'; 
         const idColumn = role === 'Doctor' ? 'doctor_id' : 'staff_id';
 
@@ -190,11 +207,9 @@ router.post('/staff/login', async (req, res) => {
 // ==========================================
 // 3. FORGOT PASSWORD ROUTES
 // ==========================================
-
 router.post('/forgot-password', async (req, res) => {
     const { email, role } = req.body;
 
-    // 🔴 LOWERCASE FIX applied here
     let table = 'patient';
     if (role.toLowerCase() === 'doctor') table = 'doctor';
     if (role.toLowerCase() === 'staff' || role.toLowerCase() === 'receptionist') table = 'staff';
@@ -209,7 +224,6 @@ router.post('/forgot-password', async (req, res) => {
         const emailSent = await sendResetEmail(email, otp);
         if (!emailSent) return res.status(500).json({ error: 'Failed to send email. Check SMTP config.' });
 
-        // 🔴 LOWERCASE FIX applied here
         await pool.query(
             'INSERT INTO passwordreset (email, otp, role, expires_at) VALUES (?, ?, ?, ?)',
             [email, otp, role, expiresAt]
@@ -225,13 +239,11 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
     const { email, otp, newPassword, role } = req.body;
 
-    // 🔴 LOWERCASE FIX applied here
     let table = 'patient';
     if (role.toLowerCase() === 'doctor') table = 'doctor';
     if (role.toLowerCase() === 'staff' || role.toLowerCase() === 'receptionist') table = 'staff';
 
     try {
-        // 🔴 LOWERCASE FIX applied here
         const [records] = await pool.query(
             'SELECT * FROM passwordreset WHERE email = ? AND otp = ? AND role = ? AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
             [email, otp, role]
@@ -242,28 +254,11 @@ router.post('/reset-password', async (req, res) => {
         const hash = await bcrypt.hash(newPassword, 10);
         await pool.query(`UPDATE ${table} SET password_hash = ? WHERE email = ?`, [hash, email]);
         
-        // 🔴 LOWERCASE FIX applied here
         await pool.query('DELETE FROM passwordreset WHERE email = ?', [email]);
 
         res.json({ message: 'Password Reset Successful. Please Login.' });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// ==========================================
-// 🛠️ EMERGENCY RESET ROUTE 
-// ==========================================
-router.get('/reset-all-passwords', async (req, res) => {
-    try {
-        const newHash = await bcrypt.hash('password123', 10);
-        // 🔴 LOWERCASE FIX applied here
-        await pool.query('UPDATE doctor SET password_hash = ?', [newHash]);
-        await pool.query('UPDATE staff SET password_hash = ?', [newHash]);
-        await pool.query('UPDATE patient SET password_hash = ?', [newHash]);
-        res.send(`<h1 style="color: green;">Success! All passwords reset to: password123</h1>`);
-    } catch (error) {
-        res.status(500).send('Error: ' + error.message);
     }
 });
 

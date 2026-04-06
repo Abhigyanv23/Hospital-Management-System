@@ -36,7 +36,7 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetMessage, setResetMessage] = useState('');
 
-  // Consistent Theme styling (Matches StaffLogin)
+  // Consistent Theme styling
   const theme = {
     bg: 'bg-indigo-600',
     hoverBg: 'hover:bg-indigo-700',
@@ -54,7 +54,6 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
 
     try {
       const result = await api.auth.loginPatient(identifier, password);
-      // --- 🔴 THE FIX: Save as 'token' ---
       localStorage.setItem('token', result.token); 
       localStorage.setItem('user_id', result.user.patient_id);
       localStorage.setItem('user_name', result.user.name);
@@ -67,16 +66,25 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     }
   };
 
-  // --- 2. SEND OTP (For Registration) ---
+  // --- 2. SEND OTP (Now Using Email) ---
   const handleSendOtp = async () => {
     setRegError('');
+    
+    // Require email before sending OTP
+    if (!regEmail || !regEmail.includes('@')) {
+        setRegError('Please enter a valid email address first.');
+        return;
+    }
+
     if (!/^\d{10}$/.test(regPhone)) {
         setRegError('Phone number must be exactly 10 digits.');
         return;
     }
+    
     setIsSendingOtp(true);
     try {
-        await api.auth.sendOtp(regPhone);
+        // Pass BOTH phone and email to the API
+        await api.auth.sendOtp(regPhone, regEmail); 
         setOtpSent(true);
         setRegError(''); 
     } catch (err) {
@@ -91,8 +99,8 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     e.preventDefault();
     setRegError('');
 
-    if (!otpSent) return setRegError("Please verify your phone number first.");
-    if (!otp) return setRegError("Please enter the OTP sent to your phone.");
+    if (!otpSent) return setRegError("Please request an OTP first.");
+    if (!otp) return setRegError("Please enter the OTP sent to your email.");
     if (regPassword !== regConfirmPassword) return setRegError('Passwords do not match.');
 
     setIsRegistering(true);
@@ -118,13 +126,13 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     }
   };
 
-  // --- 4. FORGOT PASSWORD FLOW ---
+  // --- 4. FORGOT PASSWORD FLOW (Live Render URLs) ---
   const handleSendResetOtp = async (e) => {
       e.preventDefault();
       setResetMessage('');
       setIsSendingOtp(true);
       try {
-          const res = await fetch('http://localhost:3001/api/forgot-password', {
+          const res = await fetch('https://hospital-management-system-z8ay.onrender.com/api/forgot-password', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: resetEmail, role: 'patient' })
@@ -145,7 +153,7 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
       setResetMessage('');
       setIsRegistering(true); 
       try {
-          const res = await fetch('http://localhost:3001/api/reset-password', {
+          const res = await fetch('https://hospital-management-system-z8ay.onrender.com/api/reset-password', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: resetEmail, otp: resetOtp, newPassword: resetNewPassword, role: 'patient' })
@@ -298,7 +306,7 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
                     <input type="tel" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className={`w-full p-3 pl-10 border rounded-xl outline-none transition ${theme.ring} ${otpSent ? 'bg-slate-50 text-slate-500 border-slate-200' : 'border-slate-200'}`} placeholder="10-digit number" maxLength="10" disabled={otpSent} required />
                 </div>
                 {!otpSent ? (
-                    <button type="button" onClick={handleSendOtp} disabled={isSendingOtp || regPhone.length !== 10} className={`px-4 rounded-xl font-bold text-white transition-all flex items-center disabled:opacity-50 whitespace-nowrap ${theme.bg} ${theme.hoverBg}`}>
+                    <button type="button" onClick={handleSendOtp} disabled={isSendingOtp || regPhone.length !== 10 || !regEmail.includes('@')} className={`px-4 rounded-xl font-bold text-white transition-all flex items-center disabled:opacity-50 whitespace-nowrap ${theme.bg} ${theme.hoverBg}`}>
                         {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : <><Send className="w-4 h-4 mr-2"/> OTP</>}
                     </button>
                 ) : (
