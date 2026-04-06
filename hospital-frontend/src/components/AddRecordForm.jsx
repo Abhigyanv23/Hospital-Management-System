@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, Pill, AlertCircle, Upload, X, Clock } from 'lucide-react';
+import { FileText, Plus, Trash2, Pill, AlertCircle, Upload, X, Clock, CheckSquare } from 'lucide-react';
 import Card from './Card';
 import { api } from '../services/api';
 
-const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
+const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refreshTrigger }) => {
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState('');
@@ -17,9 +17,13 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
   const [medDuration, setMedDuration] = useState(''); 
   const [prescribedMeds, setPrescribedMeds] = useState([]);
 
+  // NEW: Checkbox State
+  const [buyFromHospital, setBuyFromHospital] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch Meds (Runs on mount AND when refreshTrigger changes)
   useEffect(() => {
     const fetchMeds = async () => {
       try {
@@ -28,7 +32,7 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
       } catch (err) { console.error("Failed to load medicines", err); }
     };
     fetchMeds();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleAddMedicine = () => {
     if (!selectedMedId || !medQuantity || !medDosage || !medDuration) {
@@ -76,7 +80,7 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
     
     // --- UX FIX: WARN IF MEDICINE INPUTS ARE FILLED BUT NOT ADDED ---
     if (selectedMedId && (prescribedMeds.length === 0)) {
-        setError("⚠️ You selected a medicine but didn't click the '+' button to add it!");
+        setError("You selected a medicine but didn't click the '+' button to add it!");
         return;
     }
 
@@ -101,12 +105,17 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
         notes,
         treatment_plan: treatmentPlan,
         medicines: prescribedMeds,
+        deduct_inventory: buyFromHospital, // FIXED: Now matches the backend!
         file_path: uploadedFilePath
       };
 
       await api.prescriptions.create(fullData);
       
-      setDiagnosis(''); setNotes(''); setTreatmentPlan(''); setPrescribedMeds([]); setSelectedFile(null);
+      // Reset Form
+      setDiagnosis(''); setNotes(''); setTreatmentPlan(''); 
+      setPrescribedMeds([]); setSelectedFile(null); 
+      setBuyFromHospital(false); // Reset Checkbox
+      
       onRecordAdded(); 
 
     } catch (err) {
@@ -194,7 +203,24 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded }) => {
 
         <textarea placeholder="Additional Treatment Instructions..." value={treatmentPlan} onChange={(e) => setTreatmentPlan(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:border-indigo-500 outline-none" rows="2"/>
         
-        <button type="submit" disabled={isSubmitting} className="w-full bg-green-600 text-white p-3 rounded-xl font-bold hover:bg-green-700 transition duration-150 disabled:opacity-50 shadow-lg shadow-emerald-200">
+        {/* NEW: Inventory Checkbox */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
+            <input 
+                type="checkbox" 
+                id="pharmacyCheck"
+                checked={buyFromHospital}
+                onChange={(e) => setBuyFromHospital(e.target.checked)}
+                className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300 cursor-pointer"
+            />
+            <label htmlFor="pharmacyCheck" className="text-sm font-bold text-emerald-900 cursor-pointer select-none">
+                Purchasing from Hospital Pharmacy?
+                <span className="block text-[10px] font-normal text-emerald-700 mt-0.5">
+                    (Auto-deducts stock from Inventory)
+                </span>
+            </label>
+        </div>
+
+        <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white p-3 rounded-xl font-bold hover:bg-indigo-700 transition duration-150 disabled:opacity-50 shadow-lg shadow-indigo-200">
           {isSubmitting ? 'Processing...' : 'Submit Prescription'}
         </button>
       </form>

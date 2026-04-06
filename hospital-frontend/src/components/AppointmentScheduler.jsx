@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, AlertCircle } from 'lucide-react'; 
+import { Calendar, Clock, AlertCircle, Sparkles, BrainCircuit } from 'lucide-react'; 
 import Card from './Card'; 
 
 const API_BASE_URL = 'http://localhost:3001/api';
@@ -12,13 +12,13 @@ const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // --- DEBUGGING: Check what data we are receiving ---
-  useEffect(() => {
-    if (doctors && doctors.length > 0) {
-        console.log("👨‍⚕️ DOCTOR DATA DEBUG:", doctors);
-        console.log("⭐ First Doctor Rating:", doctors[0].average_rating);
-    }
-  }, [doctors]);
+  // --- NEW: AI TRIAGE STATE ---
+  const [isTriageMode, setIsTriageMode] = useState(false);
+  const [symptomsRaw, setSymptomsRaw] = useState('');
+  const [symptomsMedical, setSymptomsMedical] = useState('');
+  const [patientExplanation, setPatientExplanation] = useState(''); 
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [triageSuccess, setTriageSuccess] = useState('');
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -34,6 +34,52 @@ const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
 
   const timeSlots = generateTimeSlots();
 
+  // --- NEW: HANDLE AI ANALYSIS ---
+  const handleAnalyzeSymptoms = async () => {
+    if (!symptomsRaw.trim()) {
+        setError("Please describe your problem first.");
+        return;
+    }
+    
+    setIsAnalyzing(true);
+    setError('');
+    setTriageSuccess('');
+    setPatientExplanation(''); 
+
+    try {
+        // 🔴 THE FIX: GRAB THE TOKEN AND PASS IT TO THE BOUNCER
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`${API_BASE_URL}/triage`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // Show the ID card!
+            },
+            body: JSON.stringify({ 
+                symptoms: symptomsRaw,
+                available_doctors: doctors 
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.error || 'AI Analysis failed.');
+
+        // Auto-select the doctor the AI recommended!
+        setSelectedDoctorId(data.recommended_doctor_id.toString());
+        setSymptomsMedical(data.medical_terms); 
+        setPatientExplanation(data.patient_friendly_explanation); 
+        setTriageSuccess(`AI Recommendation: We have selected Dr. ${data.recommended_doctor_name} (${data.specialty}) based on your symptoms.`);
+        
+    } catch (err) {
+        setError("Our AI is currently unavailable. Please select a doctor manually from the dropdown.");
+        console.error(err);
+    } finally {
+        setIsAnalyzing(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedDoctorId || !appointmentDate || !appointmentTime) return;
@@ -47,12 +93,20 @@ const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
       appointment_date: appointmentDate,
       appointment_time: appointmentTime, 
       is_emergency: isEmergency,
+      symptoms_raw: isTriageMode ? symptomsRaw : null,
+      symptoms_medical: isTriageMode ? symptomsMedical : null
     };
 
     try {
+      // 🔴 THE FIX: ATTACH THE TOKEN HERE AS WELL
+      const token = localStorage.getItem('token');
+      
       const response = await fetch(`${API_BASE_URL}/appointments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Show the ID card!
+        },
         body: JSON.stringify(newAppointmentData),
       });
 
@@ -63,10 +117,17 @@ const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
       }
 
       onSchedule(result);
+      
+      // Reset Form
       setSelectedDoctorId('');
       setAppointmentDate('');
       setAppointmentTime(''); 
       setIsEmergency(false);
+      setIsTriageMode(false);
+      setSymptomsRaw('');
+      setSymptomsMedical('');
+      setPatientExplanation(''); 
+      setTriageSuccess('');
 
     } catch (err) {
       console.error(err);
@@ -80,46 +141,93 @@ const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
 
   return (
     <Card title="Schedule New Appointment" icon={Calendar} className="col-span-1 md:col-span-2 border-t-4 border-t-indigo-500">
+      
+      {/* AI TRIAGE TOGGLE */}
+      <div className="mb-6 flex justify-end">
+          <button 
+              type="button" 
+              onClick={() => setIsTriageMode(!isTriageMode)}
+              className={`flex items-center px-4 py-2 rounded-full text-sm font-bold transition-all ${isTriageMode ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md hover:scale-105'}`}
+          >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isTriageMode ? 'Switch to Manual Selection' : 'Confused? Let AI choose the doctor'}
+          </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {error && (
-          <div className="col-span-full bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative flex items-center text-sm font-medium">
+          <div className="col-span-full bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center text-sm font-medium">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
+
+        {/* --- AI TRIAGE INPUT AREA --- */}
+        {isTriageMode && (
+            <div className="col-span-full bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl mb-2 animate-fade-in">
+                <label className="block text-sm font-bold text-indigo-900 mb-2 flex items-center">
+                    <BrainCircuit className="w-4 h-4 mr-1 text-indigo-600"/> Describe your problem in your own words
+                </label>
+                <div className="flex gap-2">
+                    <textarea 
+                        value={symptomsRaw}
+                        onChange={(e) => setSymptomsRaw(e.target.value)}
+                        placeholder="e.g., 'My stomach hurts really bad after eating spicy food and I feel nauseous...'"
+                        className="flex-grow p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none h-20"
+                    />
+                    <button 
+                        type="button" 
+                        onClick={handleAnalyzeSymptoms}
+                        disabled={isAnalyzing || !symptomsRaw.trim()}
+                        className="bg-indigo-600 text-white px-4 rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 transition whitespace-nowrap flex flex-col items-center justify-center min-w-[120px]"
+                    >
+                        {isAnalyzing ? (
+                            <span className="animate-pulse">Thinking...</span>
+                        ) : (
+                            <>Analyze <br/> Symptoms</>
+                        )}
+                    </button>
+                </div>
+                
+                {/* --- UPDATED: LAYMAN'S EXPLANATION BOX --- */}
+                {triageSuccess && (
+                    <div className="mt-4 p-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm animate-slide-in">
+                        <div className="font-bold text-emerald-800 flex items-center mb-2">
+                            <Sparkles className="w-5 h-5 mr-2 text-emerald-600"/> 
+                            {triageSuccess}
+                        </div>
+                        <p className="text-sm text-emerald-700 leading-relaxed italic">
+                            "{patientExplanation}"
+                        </p>
+                    </div>
+                )}
+            </div>
+        )}
         
         {/* 1. Doctor Selection */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Doctor</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
           <select
             value={selectedDoctorId}
             onChange={(e) => setSelectedDoctorId(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+            className={`w-full p-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white ${triageSuccess ? 'border-emerald-400 ring-2 ring-emerald-100' : 'border-gray-300'}`}
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isTriageMode && triageSuccess)} // Lock if AI selected it
           >
             <option value="" disabled>-- Choose Specialist --</option>
-            
             {doctors.map(d => {
-              // SAFE RATING CHECK
               let ratingDisplay = '(New)';
-              
-              // Check if property exists and is not null
               if (d.average_rating !== undefined && d.average_rating !== null) {
                   const num = parseFloat(d.average_rating);
-                  if (!isNaN(num) && num > 0) {
-                      ratingDisplay = `⭐ ${num.toFixed(1)}`;
-                  }
+                  if (!isNaN(num) && num > 0) ratingDisplay = `⭐ ${num.toFixed(1)}`;
               }
-
               return (
                 <option key={d.doctor_id} value={d.doctor_id}>
                   {d.name} ({d.specialization}) {ratingDisplay}
                 </option>
               );
             })}
-
           </select>
         </div>
 

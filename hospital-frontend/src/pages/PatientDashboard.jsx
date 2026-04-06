@@ -4,6 +4,9 @@ import AppointmentScheduler from '../components/AppointmentScheduler';
 import { Calendar, Star, X, CreditCard, FileText, Activity, Pill, Download, CheckCircle } from 'lucide-react'; 
 import { getDoctorName } from '../mockData';
 import { api } from '../services/api'; 
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { io } from "socket.io-client"; 
 
 const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
   const [bills, setBills] = useState([]);
@@ -16,7 +19,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
     ?.filter(a => a.patient_id === userId)
     ?.sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date)) || [];
 
-  // --- FETCH DATA ON LOAD ---
+  // --- FETCH DATA ---
   useEffect(() => {
     if (!userId) return;
 
@@ -37,48 +40,228 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
     fetchData();
   }, [userId]);
 
-  // --- HANDLE EXPORT (NEW) ---
-  const handleExport = () => {
-    if (!patient) return;
+  // --- REAL-TIME SOCKET LISTENER ---
+  useEffect(() => {
+    const socket = io("http://localhost:3001");
 
-    let content = `🏥 MEDICAL REPORT SUMMARY\n`;
-    content += `Patient: ${patient.name}\n`;
-    content += `Phone: ${patient.phone}\n`;
-    content += `Generated: ${new Date().toLocaleString()}\n`;
-    content += `================================================\n\n`;
-
-    content += `📋 MEDICAL HISTORY (${records.length} Records)\n`;
-    records.forEach((rec, i) => {
-        content += `\n[${i+1}] Date: ${rec.visit_date.split('T')[0]} | Dr. ${rec.doctor_name}\n`;
-        content += `    Diagnosis: ${rec.diagnosis}\n`;
-        content += `    Treatment: ${rec.treatment_plan}\n`;
-        content += `    Notes: ${rec.notes || 'N/A'}\n`;
-        if (rec.medicines && rec.medicines.length > 0) {
-            content += `    💊 Prescriptions:\n`;
-            rec.medicines.forEach(m => content += `       - ${m.name}: ${m.dosage} (${m.duration})\n`);
+    socket.on("patients_updated", (eventData) => {
+        if (parseInt(eventData.patient_id) === parseInt(userId)) {
+            api.patients.getOne(userId).then(updatedProfile => {
+                 if (onUpdate) {
+                     onUpdate(prev => ({
+                         ...prev,
+                         patients: prev.patients.map(p => p.patient_id === userId ? updatedProfile : p)
+                     }));
+                 }
+            });
         }
-        content += `------------------------------------------------`;
     });
 
-    content += `\n\n💳 BILLING HISTORY (${bills.length} Invoices)\n`;
-    bills.forEach((bill, i) => {
-        content += `\n[${i+1}] Date: ${bill.bill_date.split('T')[0]}\n`;
-        content += `    Amount: ₹${bill.amount}\n`;
-        content += `    Status: ${bill.status}\n`;
+    socket.on("appointment_updated", (data) => {
+        if (parseInt(data.patient_id) === parseInt(userId)) {
+            api.appointments.getAll().then(allAppts => {
+                if (onUpdate) {
+                    onUpdate(prev => ({ ...prev, appointments: allAppts }));
+                }
+            });
+        }
     });
 
-    // Create and trigger download
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `MedicalReport_${patient.name.replace(/\s+/g, '_')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    socket.on("billing_updated", (data) => {
+        if (!data || parseInt(data.patient_id) === parseInt(userId)) {
+            api.billing.getForPatient(userId).then(billsData => {
+                setBills(billsData);
+            });
+        }
+    });
+
+    return () => socket.disconnect();
+  }, [userId, onUpdate]);
+
+  // --- 🔴 RAZORPAY PAYMENT LOGIC ---
+  const loadRazorpayScript = () => {
+      return new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => resolve(true);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+      });
   };
 
-  // --- APPOINTMENT UPDATE ---
+  const handleOnlinePayment = async (bill) => {
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) return alert('Failed to load Razorpay SDK. Check your internet connection.');
+
+      try {
+          // 1. Ask backend to generate an order
+          const orderData = await api.billing.createOrder(bill.bill_id);
+
+          // 2. Open the Razorpay Checkout Popup
+          const options = {
+              // 🔴🔴🔴 PASTE YOUR REAL TEST KEY ID HERE 🔴🔴🔴
+              // It should look something like: 'rzp_test_AbCdEfGhIjKlMn'
+              key: 'YOUR_NEW_RAZORPAY_TEST_KEY_ID', 
+              
+              amount: orderData.order.amount,
+              currency: "INR",
+              name: "Pulse HMS",
+              description: bill.description || "Medical Services",
+              order_id: orderData.order.id,
+              handler: async function (response) {
+                  // 3. Send success data back to backend to verify signature
+                  await api.billing.verifyPayment({
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_signature: response.razorpay_signature,
+                      bill_id: bill.bill_id
+                  });
+                  alert('Payment Successful!');
+                  // Socket.io will automatically trigger a refresh of the bills list here!
+              },
+              prefill: {
+                  name: patient?.name,
+                  contact: patient?.phone
+              },
+              theme: { color: "#4F46E5" }
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+      } catch (error) {
+          console.error("Payment setup failed:", error);
+          alert("Failed to initiate payment.");
+      }
+  };
+
+  // --- PDF GENERATOR ---
+  const downloadMedicalReport = (record) => {
+    try {
+        const doc = new jsPDF();
+        
+        const visitDate = record.visit_date.split('T')[0];
+        const linkedBill = bills.find(b => b.issued_date && b.issued_date.startsWith(visitDate));
+
+        doc.setFillColor(79, 70, 229); 
+        doc.rect(0, 0, 210, 35, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text("Pulse HMS", 14, 15);
+        doc.setFontSize(10);
+        doc.text("Medical Diagnosis & Invoice", 14, 22);
+
+        doc.setTextColor(0, 0, 0);
+        
+        doc.setFontSize(11);
+        doc.text(`Patient Name:`, 14, 45);
+        doc.setFont("helvetica", "bold");
+        doc.text(patient?.name || 'N/A', 45, 45);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Doctor:`, 14, 52);
+        doc.setFont("helvetica", "bold");
+        doc.text(record.doctor_name || 'Medical Officer', 45, 52);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Visit Date:`, 14, 59);
+        doc.setFont("helvetica", "bold");
+        doc.text(visitDate, 45, 59);
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, 65, 196, 65);
+
+        let currentY = 75;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("Diagnosis", 14, currentY);
+        currentY += 7;
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        const diagnosisText = doc.splitTextToSize(record.diagnosis || 'No Diagnosis Recorded', 180);
+        doc.text(diagnosisText, 14, currentY);
+        currentY += (diagnosisText.length * 5) + 5;
+
+        if (record.notes) {
+            currentY += 5;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Clinical Notes", 14, currentY);
+            currentY += 7;
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            const notesText = doc.splitTextToSize(record.notes, 180);
+            doc.text(notesText, 14, currentY);
+            currentY += (notesText.length * 5) + 10;
+        } else {
+            currentY += 10;
+        }
+
+        if (record.medicines && record.medicines.length > 0) {
+            autoTable(doc, {
+                startY: currentY,
+                head: [['Medicine Name', 'Dosage', 'Duration']],
+                body: record.medicines.map(m => [m.name, m.dosage, m.duration]),
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229] },
+                columnStyles: {
+                    0: { cellWidth: 60 },
+                    1: { cellWidth: 80 }, 
+                    2: { cellWidth: 40 },
+                },
+            });
+            currentY = doc.lastAutoTable.finalY + 15;
+        } else {
+            currentY += 10;
+        }
+
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineDash([2, 2], 0);
+        doc.line(14, currentY, 196, currentY);
+        doc.setLineDash([]); 
+        currentY += 10;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(79, 70, 229); 
+        doc.text("Billing Summary", 14, currentY);
+        currentY += 10;
+
+        if (linkedBill) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+
+            doc.text(`Invoice ID: #${linkedBill.bill_id}`, 14, currentY);
+            doc.text(`Status: ${linkedBill.status}`, 100, currentY);
+            currentY += 8;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text(`Total Amount: Rs. ${linkedBill.amount}`, 14, currentY);
+        } else {
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text("No invoice found for this specific visit date.", 14, currentY);
+        }
+
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("Generated by Pulse Hospital Management System", 14, pageHeight - 10);
+
+        doc.save(`Medical_Report_${visitDate}.pdf`);
+        
+    } catch (error) {
+        console.error("PDF Error:", error);
+        alert("Failed to generate PDF.");
+    }
+  };
+
   const handleUpdateAppointment = async (appointmentId, updateData) => {
     onUpdate(prevData => {
         const newAppointments = prevData.appointments.map(a =>
@@ -93,7 +276,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
 
   const upcomingCount = patientAppointments.filter(a => a.status === 'Scheduled').length;
   const completedCount = patientAppointments.filter(a => a.status === 'Completed').length;
-  const unpaidBillsCount = bills.filter(b => b.status === 'Unpaid').length;
+  const unpaidBillsCount = bills.filter(b => b.status === 'Pending').length;
 
   return (
     <div className="space-y-8">
@@ -113,11 +296,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
                     </div>
                 </div>
             )}
-            <button onClick={handleExport} className="bg-white text-indigo-600 px-5 py-2 rounded-xl font-bold hover:bg-indigo-50 transition shadow-lg flex items-center gap-2">
-                <Download className="w-4 h-4" /> Report
-            </button>
         </div>
-        {/* Decorative circles */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
       </div>
@@ -171,11 +350,21 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
                                         <h4 className="font-bold text-slate-800 text-lg">{rec.diagnosis}</h4>
                                         <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-wide">{rec.visit_date.split('T')[0]} • Dr. {rec.doctor_name}</p>
                                     </div>
-                                    {rec.file_path && (
-                                        <a href={`http://localhost:3001${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition">
-                                            📎 File
-                                        </a>
-                                    )}
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => downloadMedicalReport(rec)}
+                                            className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition flex items-center gap-1"
+                                            title="Download PDF Report"
+                                        >
+                                            <Download className="w-3 h-3" /> PDF
+                                        </button>
+                                        
+                                        {rec.file_path && (
+                                            <a href={`http://localhost:3001${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 font-bold hover:bg-slate-50 transition">
+                                                📎 File
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-1 gap-4 text-sm mb-4">
                                     {rec.notes && (
@@ -212,19 +401,44 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
                 )}
             </Card>
 
+            {/* --- UPDATED BILLING HISTORY WITH RAZORPAY --- */}
             <Card title="Billing History" icon={CreditCard}>
                 {isLoadingBills ? <p className="text-center text-slate-400 py-4">Loading...</p> : bills.length === 0 ? <p className="text-center text-slate-400 py-8">No bills found.</p> : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-100 text-sm">
                             <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
-                                <tr><th className="px-6 py-3 text-left">Date</th><th className="px-6 py-3 text-left">Amount</th><th className="px-6 py-3 text-left">Status</th></tr>
+                                <tr>
+                                    <th className="px-4 py-3 text-left">Date</th>
+                                    <th className="px-4 py-3 text-left">Description</th>
+                                    <th className="px-4 py-3 text-left">Amount</th>
+                                    <th className="px-4 py-3 text-left">Status</th>
+                                </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {bills.map(b => (
                                     <tr key={b.bill_id} className="hover:bg-slate-50 transition">
-                                        <td className="px-6 py-4 font-medium text-slate-600">{b.bill_date.split('T')[0]}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-800">₹{b.amount}</td>
-                                        <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-wider ${b.status==='Paid'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}`}>{b.status}</span></td>
+                                        <td className="px-4 py-4 font-medium text-slate-600">{(b.issued_date || b.bill_date || '').split('T')[0]}</td>
+                                        <td className="px-4 py-4 text-slate-500 text-xs max-w-[150px] truncate" title={b.description || 'Consultation'}>{b.description || 'Consultation'}</td>
+                                        <td className="px-4 py-4 font-bold text-slate-800">₹{b.amount}</td>
+                                        
+                                        {/* 🔴 THE PAY NOW BUTTON LOGIC */}
+                                        <td className="px-4 py-4 flex items-center gap-3">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold tracking-wider ${
+                                                b.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 
+                                                b.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {b.status}
+                                            </span>
+                                            
+                                            {b.status === 'Pending' && (
+                                                <button 
+                                                    onClick={() => handleOnlinePayment(b)}
+                                                    className="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-wide hover:bg-indigo-700 shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
+                                                >
+                                                    Pay Now
+                                                </button>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -246,7 +460,10 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
                                         <p className="font-bold text-slate-800 text-lg">{a.appointment_date}</p>
                                         <p className="text-sm font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md w-fit mt-1">{a.appointment_time ? a.appointment_time.slice(0,5) : 'Time N/A'}</p>
                                     </div>
-                                    <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full ${a.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full ${
+                                        a.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 
+                                        a.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                    }`}>
                                         {a.status}
                                     </span>
                                 </div>

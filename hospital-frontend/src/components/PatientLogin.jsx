@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { LoaderCircle, Send, CheckCircle } from 'lucide-react';
+import { LoaderCircle, Send, CheckCircle, ArrowLeft, UserCircle, KeyRound, Mail, Phone, MapPin, Calendar, Users } from 'lucide-react';
 
 const PatientLogin = ({ onLoginSuccess, onRegister }) => {
   const [tab, setTab] = useState('signin');
 
   // Sign-in state
-  const [phone, setPhone] = useState('');
+  const [identifier, setIdentifier] = useState(''); 
   const [password, setPassword] = useState('');
   const [signInError, setSignInError] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
   
   // Registration State
   const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState(''); 
   const [regPhone, setRegPhone] = useState('');
   const [regAge, setRegAge] = useState('');
   const [regGender, setRegGender] = useState('M');
@@ -27,6 +28,24 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [regError, setRegError] = useState('');
 
+  // --- FORGOT PASSWORD STATE ---
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetStep, setResetStep] = useState(1);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+
+  // Consistent Theme styling (Matches StaffLogin)
+  const theme = {
+    bg: 'bg-indigo-600',
+    hoverBg: 'hover:bg-indigo-700',
+    text: 'text-indigo-600',
+    textHover: 'hover:text-indigo-800',
+    ring: 'focus:ring-indigo-500',
+    shadow: 'shadow-indigo-200'
+  };
+
   // --- 1. SIGN IN ---
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -34,8 +53,9 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     setIsSigningIn(true);
 
     try {
-      const result = await api.auth.loginPatient(phone, password);
-      localStorage.setItem('jwt_token', result.token);
+      const result = await api.auth.loginPatient(identifier, password);
+      // --- 🔴 THE FIX: Save as 'token' ---
+      localStorage.setItem('token', result.token); 
       localStorage.setItem('user_id', result.user.patient_id);
       localStorage.setItem('user_name', result.user.name);
       localStorage.setItem('user_role', result.user.role);
@@ -47,21 +67,18 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     }
   };
 
-  // --- 2. SEND OTP ---
+  // --- 2. SEND OTP (For Registration) ---
   const handleSendOtp = async () => {
     setRegError('');
-    
-    // Validation: 10 Digits
     if (!/^\d{10}$/.test(regPhone)) {
         setRegError('Phone number must be exactly 10 digits.');
         return;
     }
-
     setIsSendingOtp(true);
     try {
         await api.auth.sendOtp(regPhone);
         setOtpSent(true);
-        setRegError(''); // Clear errors on success
+        setRegError(''); 
     } catch (err) {
         setRegError(err.message);
     } finally {
@@ -74,32 +91,22 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     e.preventDefault();
     setRegError('');
 
-    if (!otpSent) {
-        setRegError("Please verify your phone number first.");
-        return;
-    }
-
-    if (!otp) {
-        setRegError("Please enter the OTP sent to your phone.");
-        return;
-    }
-
-    if (regPassword !== regConfirmPassword) {
-      setRegError('Passwords do not match.');
-      return;
-    }
+    if (!otpSent) return setRegError("Please verify your phone number first.");
+    if (!otp) return setRegError("Please enter the OTP sent to your phone.");
+    if (regPassword !== regConfirmPassword) return setRegError('Passwords do not match.');
 
     setIsRegistering(true);
 
     try {
       const newPatientData = {
         name: regName,
+        email: regEmail,
         age: parseInt(regAge),
         gender: regGender,
         phone: regPhone,
         address: regAddress,
         password: regPassword,
-        otp: otp // Send OTP to backend
+        otp: otp 
       };
 
       const result = await api.auth.registerPatient(newPatientData);
@@ -111,94 +118,252 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
     }
   };
 
+  // --- 4. FORGOT PASSWORD FLOW ---
+  const handleSendResetOtp = async (e) => {
+      e.preventDefault();
+      setResetMessage('');
+      setIsSendingOtp(true);
+      try {
+          const res = await fetch('http://localhost:3001/api/forgot-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: resetEmail, role: 'patient' })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          setResetStep(2);
+          setResetMessage('OTP sent to your email!');
+      } catch (err) {
+          setResetMessage(err.message || 'Failed to send OTP.');
+      } finally {
+          setIsSendingOtp(false);
+      }
+  };
+
+  const handleResetPassword = async (e) => {
+      e.preventDefault();
+      setResetMessage('');
+      setIsRegistering(true); 
+      try {
+          const res = await fetch('http://localhost:3001/api/reset-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: resetEmail, otp: resetOtp, newPassword: resetNewPassword, role: 'patient' })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          
+          alert("Password Reset Successfully! Please sign in.");
+          setIsForgotPassword(false);
+          setResetStep(1);
+          setResetEmail('');
+          setResetOtp('');
+          setResetNewPassword('');
+      } catch (err) {
+          setResetMessage(err.message || 'Failed to reset password.');
+      } finally {
+          setIsRegistering(false);
+      }
+  };
+
+  // ==========================================
+  // RENDER: FORGOT PASSWORD VIEW
+  // ==========================================
+  if (isForgotPassword) {
+      return (
+          <div className="animate-fade-in space-y-6">
+              <button onClick={() => setIsForgotPassword(false)} className={`flex items-center text-sm font-bold mb-4 ${theme.text} ${theme.textHover} transition`}>
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back to Login
+              </button>
+              
+              <div className="text-center mb-8">
+                  <h3 className="text-2xl font-black text-slate-800">Reset Password</h3>
+                  <p className="text-slate-500 text-sm">Patient Portal</p>
+              </div>
+
+              {resetMessage && (
+                  <div className={`p-3 border rounded-xl text-sm text-center font-medium ${resetMessage.includes('sent') || resetMessage.includes('Success') ? 'bg-green-50 border-green-100 text-green-600' : 'bg-rose-50 border-rose-100 text-rose-600'}`}>
+                      {resetMessage}
+                  </div>
+              )}
+
+              {resetStep === 1 ? (
+                  <form onSubmit={handleSendResetOtp} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Registered Email</label>
+                          <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} className={`w-full p-3 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="patient@example.com" required />
+                      </div>
+                      <button type="submit" disabled={isSendingOtp} className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center ${theme.bg} ${theme.hoverBg} disabled:opacity-50`}>
+                          {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Send Reset Link'}
+                      </button>
+                  </form>
+              ) : (
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">4-Digit OTP</label>
+                          <input type="text" value={resetOtp} onChange={(e) => setResetOtp(e.target.value)} className={`w-full p-3 border border-slate-200 rounded-xl font-mono text-center tracking-widest outline-none transition ${theme.ring}`} maxLength="4" placeholder="1234" required />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">New Password</label>
+                          <input type="password" value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} className={`w-full p-3 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="Enter new password" required />
+                      </div>
+                      <button type="submit" disabled={isRegistering} className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                          {isRegistering ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Set New Password'}
+                      </button>
+                  </form>
+              )}
+          </div>
+      );
+  }
+
+  // ==========================================
+  // RENDER: STANDARD LOGIN/REGISTER VIEW
+  // ==========================================
   return (
-    <div>
-      <h3 className="text-2xl font-bold text-center text-indigo-700 mb-4">Patient Portal</h3>
-      <div className="flex border-b mb-4">
-        <button onClick={() => setTab('signin')} className={`flex-1 py-2 font-semibold ${tab === 'signin' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>Sign In</button>
-        <button onClick={() => setTab('register')} className={`flex-1 py-2 font-semibold ${tab === 'register' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>Register</button>
+    <div className="space-y-6">
+      
+      {/* Header Matches StaffLogin */}
+      <div className="text-center mb-6">
+        <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 shadow-lg text-white ${theme.bg}`}>
+            <UserCircle className="w-8 h-8" />
+        </div>
+        <h3 className="text-2xl font-black text-slate-800">Patient Portal</h3>
+        <p className="text-slate-500 text-sm">Access your medical records and appointments.</p>
+      </div>
+
+      {/* Custom Tabs */}
+      <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+        <button onClick={() => setTab('signin')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${tab === 'signin' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Sign In</button>
+        <button onClick={() => setTab('register')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${tab === 'register' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Register</button>
       </div>
 
       {tab === 'signin' && (
-        <form onSubmit={handleSignIn} className="space-y-4">
-          {signInError && <p className="text-red-500 text-sm text-center bg-red-100 p-2 rounded-lg">{signInError}</p>}
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Phone Number (10 digits)" required />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Password" required />
-          <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-150 flex justify-center" disabled={isSigningIn}>
-            {isSigningIn ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Sign In'}
+        <form onSubmit={handleSignIn} className="space-y-5 animate-fade-in">
+          {signInError && <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-sm text-center font-medium">{signInError}</div>}
+          
+          <div className="space-y-4">
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Email or Phone Number</label>
+                <div className="relative">
+                    <UserCircle className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                    <input type="text" value={identifier} onChange={(e) => setIdentifier(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition font-mono ${theme.ring}`} placeholder="Email or Phone" required />
+                </div>
+            </div>
+            
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Password</label>
+                <div className="relative">
+                    <KeyRound className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="••••••••" required />
+                </div>
+                <div className="flex justify-end mt-2">
+                    <button type="button" onClick={() => setIsForgotPassword(true)} className={`text-xs font-bold transition ${theme.text} ${theme.textHover}`}>
+                        Forgot Password?
+                    </button>
+                </div>
+            </div>
+          </div>
+
+          <button type="submit" disabled={isSigningIn} className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center disabled:opacity-50 ${theme.bg} ${theme.hoverBg} ${theme.shadow}`}>
+            {isSigningIn ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Secure Login'}
           </button>
         </form>
       )}
 
       {tab === 'register' && (
-        <form onSubmit={handleRegister} className="space-y-4">
-          {regError && <p className="text-red-500 text-sm text-center bg-red-100 p-2 rounded-lg">{regError}</p>}
+        <form onSubmit={handleRegister} className="space-y-4 animate-fade-in max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {regError && <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-sm text-center font-medium">{regError}</div>}
           
-          <input type="text" placeholder="Full Name" value={regName} onChange={(e) => setRegName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required />
-          
-          {/* PHONE INPUT WITH OTP BUTTON */}
-          <div className="flex gap-2">
-              <input 
-                type="tel" 
-                placeholder="Phone (10 digits)" 
-                value={regPhone} 
-                onChange={(e) => setRegPhone(e.target.value)} 
-                className={`flex-grow p-2 border rounded-lg ${otpSent ? 'bg-gray-100 text-gray-500' : 'border-gray-300'}`}
-                maxLength="10"
-                disabled={otpSent} // Disable after OTP is sent
-                required 
-              />
-              {!otpSent ? (
-                  <button 
-                    type="button" 
-                    onClick={handleSendOtp}
-                    disabled={isSendingOtp || regPhone.length !== 10}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50 hover:bg-indigo-700 whitespace-nowrap flex items-center"
-                  >
-                    {isSendingOtp ? <LoaderCircle className="animate-spin w-4 h-4"/> : <><Send className="w-4 h-4 mr-1"/> OTP</>}
-                  </button>
-              ) : (
-                  <div className="flex items-center text-green-600 font-bold px-3">
-                      <CheckCircle className="w-5 h-5 mr-1"/> Sent
-                  </div>
-              )}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Full Name</label>
+            <div className="relative">
+                <UserCircle className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                <input type="text" value={regName} onChange={(e) => setRegName(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="John Doe" required />
+            </div>
           </div>
 
-          {/* OTP INPUT - Only shows after sending */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Email Address</label>
+            <div className="relative">
+                <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="john@example.com" required />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Phone Number</label>
+            <div className="flex gap-2">
+                <div className="relative flex-grow">
+                    <Phone className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                    <input type="tel" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className={`w-full p-3 pl-10 border rounded-xl outline-none transition ${theme.ring} ${otpSent ? 'bg-slate-50 text-slate-500 border-slate-200' : 'border-slate-200'}`} placeholder="10-digit number" maxLength="10" disabled={otpSent} required />
+                </div>
+                {!otpSent ? (
+                    <button type="button" onClick={handleSendOtp} disabled={isSendingOtp || regPhone.length !== 10} className={`px-4 rounded-xl font-bold text-white transition-all flex items-center disabled:opacity-50 whitespace-nowrap ${theme.bg} ${theme.hoverBg}`}>
+                        {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : <><Send className="w-4 h-4 mr-2"/> OTP</>}
+                    </button>
+                ) : (
+                    <div className="flex items-center text-emerald-600 bg-emerald-50 px-4 rounded-xl font-bold border border-emerald-100">
+                        <CheckCircle className="w-5 h-5 mr-1"/> Sent
+                    </div>
+                )}
+            </div>
+          </div>
+
           {otpSent && (
-              <div className="animate-slide-in">
-                  <input 
-                    type="text" 
-                    placeholder="Enter 6-digit OTP" 
-                    value={otp} 
-                    onChange={(e) => setOtp(e.target.value)} 
-                    className="w-full p-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 font-mono text-center tracking-widest" 
-                    maxLength="6"
-                    required 
-                  />
-                  <p className="text-xs text-gray-500 mt-1 text-center">Check your console or phone for code.</p>
-              </div>
+            <div className="animate-slide-in p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                <label className="block text-xs font-bold text-indigo-700 uppercase mb-2 text-center">Enter Verification Code</label>
+                <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className={`w-full p-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-500 font-mono text-center text-lg tracking-[0.5em] outline-none bg-white`} maxLength="6" placeholder="------" required />
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <input type="number" placeholder="Age" value={regAge} onChange={(e) => setRegAge(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required />
-            <select value={regGender} onChange={(e) => setRegGender(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg">
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="O">Other</option>
-            </select>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Age</label>
+              <div className="relative">
+                  <Calendar className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                  <input type="number" value={regAge} onChange={(e) => setRegAge(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="Years" required />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Gender</label>
+              <div className="relative">
+                  <Users className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                  <select value={regGender} onChange={(e) => setRegGender(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition bg-white appearance-none ${theme.ring}`}>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                  </select>
+              </div>
+            </div>
           </div>
           
-          <input type="text" placeholder="Address" value={regAddress} onChange={(e) => setRegAddress(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" />
-          <input type="password" placeholder="Password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required />
-          <input type="password" placeholder="Confirm Password" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" required />
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Home Address</label>
+            <div className="relative">
+                <MapPin className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                <input type="text" value={regAddress} onChange={(e) => setRegAddress(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="Full Address" />
+            </div>
+          </div>
 
-          <button 
-            type="submit" 
-            className="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700 transition duration-150 disabled:opacity-50"
-            disabled={isRegistering || !otpSent}
-          >
-            {isRegistering ? 'Verifying & Creating...' : 'Register'}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Password</label>
+                <div className="relative">
+                    <KeyRound className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                    <input type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="••••••••" required />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Confirm Password</label>
+                <div className="relative">
+                    <KeyRound className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                    <input type="password" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="••••••••" required />
+                </div>
+              </div>
+          </div>
+
+          <button type="submit" className="w-full py-3.5 mt-2 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 disabled:opacity-50" disabled={isRegistering || !otpSent}>
+            {isRegistering ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Create Patient Account'}
           </button>
         </form>
       )}

@@ -24,7 +24,7 @@ const USER_ROLES = {
 };
 
 const getInitialUserState = () => {
-    const token = localStorage.getItem('jwt_token');
+    const token = localStorage.getItem('token'); // Fixed from jwt_token
     const name = localStorage.getItem('user_name');
     const id = localStorage.getItem('user_id');
     const role = localStorage.getItem('user_role');
@@ -56,9 +56,18 @@ const App = () => {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // --- INITIAL DATA FETCH ---
+  // --- 🔴 THE SMART DATA FETCH ---
+  // Now relies on currentUser.role. It will run whenever the user logs in or out!
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadSecureData = async () => {
+      // 1. If we are just a guest on the Home page, don't try to fetch secure data
+      if (currentUser.role === USER_ROLES.HOME) {
+          setIsAppLoading(false);
+          return;
+      }
+
+      // 2. We are logged in! Let's fetch the hospital data.
+      setIsAppLoading(true);
       try {
         const [patients, appointments, doctors] = await Promise.all([
           api.patients.getAll(),
@@ -73,15 +82,22 @@ const App = () => {
           doctors: doctors 
         }));
       } catch (error) {
-        console.error("Initial data load failed:", error);
-        showNotification("Connecting to server...", "info");
+        console.error("Data load failed:", error);
+        
+        // If the backend Bouncer rejected us, the token is probably expired.
+        if (error.message.includes('Token') || error.message.includes('Access Denied')) {
+            showNotification("Your session expired. Please log in again.", "error");
+            handleLogout();
+        } else {
+            showNotification("Failed to connect to the server.", "error");
+        }
       } finally {
-        setTimeout(() => setIsAppLoading(false), 800);
+        setTimeout(() => setIsAppLoading(false), 500);
       }
     };
 
-    loadInitialData();
-  }, []);
+    loadSecureData();
+  }, [currentUser.role]); // <-- This is the magic dependency!
 
   const handleScheduleAppointment = (newAppointment) => {
     setData(prevData => ({
@@ -135,9 +151,9 @@ const App = () => {
 
     let content;
     if (loginTargetRole === 'Patient') {
-      content = <PatientLogin onLoginSuccess={handleLoginSuccess} onRegister={handleRegister} patients={data.patients} />;
+      content = <PatientLogin onLoginSuccess={handleLoginSuccess} onRegister={handleRegister} />;
     } else if (loginTargetRole === 'Doctor' || loginTargetRole === 'Receptionist') {
-      content = <StaffLogin role={loginTargetRole} onLoginSuccess={handleLoginSuccess} doctors={data.doctors} />;
+      content = <StaffLogin role={loginTargetRole} onLoginSuccess={handleLoginSuccess} />;
     } else {
       content = <p>Error: Unknown role.</p>;
     }
@@ -219,6 +235,7 @@ const App = () => {
         </header>
 
         <main className="animate-fade-in">
+            {/* The main dashboard components are loaded based on the current user role! */}
             {renderDashboard()}
         </main>
       </div>

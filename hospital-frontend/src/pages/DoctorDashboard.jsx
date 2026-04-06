@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Card from '../components/Card';
 import AddRecordForm from '../components/AddRecordForm';
-import { Calendar, Clock, User, Activity, ThumbsUp, ThumbsDown, Search, Users, Star, ArrowRight, FileText, Pill } from 'lucide-react';
+import { Calendar, Clock, User, Activity, ThumbsUp, ThumbsDown, Search, Users, Star, ArrowRight, FileText, Pill, BrainCircuit } from 'lucide-react';
 import { getPatientName, getDepartmentName } from '../mockData';
 import { api } from '../services/api';
+import { io } from "socket.io-client"; // Import Socket.io
 
 const DoctorDashboard = ({ data, userId }) => {
   const doctor = data.doctors.find(d => d.doctor_id === userId);
@@ -17,6 +18,9 @@ const DoctorDashboard = ({ data, userId }) => {
   
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // NEW: State to trigger re-fetch in child components
+  const [inventoryUpdateTrigger, setInventoryUpdateTrigger] = useState(0);
 
   // --- FETCH DATA ---
   useEffect(() => {
@@ -44,6 +48,46 @@ const DoctorDashboard = ({ data, userId }) => {
     fetchDashboardData();
   }, [userId, data.appointments]);
 
+  // --- REAL-TIME LISTENERS ---
+  useEffect(() => {
+    const socket = io("http://localhost:3001");
+
+    // 1. Inventory Updates (New Medicines added)
+    socket.on("inventory_updated", () => {
+        console.log("🔔 New medicine added! Triggering refresh...");
+        setInventoryUpdateTrigger(prev => prev + 1); 
+    });
+
+    // 2. Patient Updates (Compliance Score, Details)
+    socket.on("patients_updated", (eventData) => {
+        if (selectedPatient && parseInt(eventData.patient_id) === selectedPatient.patient_id) {
+            console.log("🔔 Current patient updated! Refreshing...");
+            handleViewPatient(selectedPatient.patient_id);
+        }
+    });
+
+    // 3. Appointment Updates (Status Changes - e.g., Receptionist marks 'Completed')
+    socket.on("appointment_updated", (data) => {
+        if (data.doctor_id == userId) {
+             api.appointments.getDoctorAnalytics(userId).then(result => {
+                 setAnalytics(result.stats);
+                 setUpcomingAppointments(result.upcoming_appointments);
+             });
+        }
+    });
+
+    // 4. Doctor Rating Updates (Patient rates doctor)
+    socket.on("doctor_updated", (data) => {
+        if (data.doctor_id == userId) {
+            api.appointments.getDoctorAnalytics(userId)
+                .then(result => setAnalytics(result.stats))
+                .catch(err => console.error("❌ Failed to update stats:", err));
+        }
+    });
+
+    return () => socket.disconnect();
+  }, [selectedPatient, userId]);
+
   // --- DIRECTORY LOGIC ---
   const myPatientsList = useMemo(() => {
     if (!data.appointments || !data.patients) return [];
@@ -63,7 +107,16 @@ const DoctorDashboard = ({ data, userId }) => {
     setIsLoadingHistory(true);
     try {
         const freshProfile = await api.patients.getOne(patientId);
-        setSelectedPatient(freshProfile);
+        
+        // NEW: Check if this patient has an upcoming appointment with AI Triage data!
+        const latestAppt = upcomingAppointments.find(a => a.patient_id === patientId);
+        
+        setSelectedPatient({
+            ...freshProfile,
+            symptoms_raw: latestAppt?.symptoms_raw || null,
+            symptoms_medical: latestAppt?.symptoms_medical || null
+        });
+
         const history = await api.patients.getHistory(patientId);
         setPatientHistory(history);
     } catch (error) { setPatientHistory([]); } 
@@ -178,6 +231,7 @@ const DoctorDashboard = ({ data, userId }) => {
         <div className="lg:col-span-8">
             {selectedPatient ? (
                 <div className="space-y-8 animate-fade-in">
+                    
                     {/* Patient Header */}
                     <div className="bg-white p-8 rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 flex justify-between items-start relative overflow-hidden">
                         <div className="relative z-10">
@@ -196,6 +250,25 @@ const DoctorDashboard = ({ data, userId }) => {
                         </div>
                     </div>
 
+                    {/* --- NEW: AI TRIAGE NOTES FOR DOCTOR --- */}
+                    {selectedPatient.symptoms_medical && (
+                        <div className="bg-indigo-50 border-l-4 border-indigo-500 p-5 rounded-r-2xl shadow-sm">
+                            <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-3 flex items-center">
+                                <BrainCircuit className="w-4 h-4 mr-2"/> AI Triage Pre-Screening
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Patient's Raw Input:</span>
+                                    <p className="text-sm text-slate-700 mt-1 italic leading-relaxed">"{selectedPatient.symptoms_raw}"</p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Clinical Translation:</span>
+                                    <p className="text-sm font-bold text-indigo-900 mt-1 leading-relaxed">{selectedPatient.symptoms_medical}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Compliance Actions */}
                     <div className="grid grid-cols-2 gap-4">
                         <button onClick={() => handleComplianceUpdate(-10)} className="py-4 bg-white border border-rose-100 text-rose-600 rounded-2xl font-bold hover:bg-rose-50 hover:border-rose-200 transition flex items-center justify-center gap-2 shadow-sm">
@@ -206,6 +279,7 @@ const DoctorDashboard = ({ data, userId }) => {
                         </button>
                     </div>
 
+                    {/* PASSING THE TRIGGER TO ADD RECORD FORM */}
                     <AddRecordForm 
                         patient={selectedPatient}
                         doctorId={userId}
@@ -214,6 +288,7 @@ const DoctorDashboard = ({ data, userId }) => {
                             recentAppointmentsMap[selectedPatient.patient_id]?.id
                         }
                         onRecordAdded={handleRecordAdded}
+                        refreshTrigger={inventoryUpdateTrigger}
                     />
 
                     {/* HISTORY LIST WITH MEDICINES */}

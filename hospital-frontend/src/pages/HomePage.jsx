@@ -11,7 +11,7 @@ const HomePage = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
             </span>
-            System Operational v2.0
+            System Operational
         </div>
         <h1 className="text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
           Healthcare <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Simplified.</span>
@@ -46,8 +46,8 @@ const HomePage = () => {
         </div>
         <div className="flex gap-12">
             {[
-                { label: "Doctors", val: "50+" },
-                { label: "Patients", val: "10k+" },
+                { label: "Doctors", val: "10+" },
+                { label: "Patients", val: "5k+" },
                 { label: "Records", val: "1M+" },
             ].map((stat, i) => (
                 <div key={i} className="text-center">

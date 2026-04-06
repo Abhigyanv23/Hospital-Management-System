@@ -11,13 +11,21 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
-// Helper to prevent caching (CRITICAL for Syncing)
+// Helper to prevent caching (CRITICAL for Syncing) and INJECT JWT
 const getHeaders = (isMultipart = false) => {
   const headers = {
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache',
     'Expires': '0',
   };
+  
+  // --- 🔴 THE JWT BOUNCER PASS ---
+  // Grab the token from storage and attach it to the header
+  const token = localStorage.getItem('token');
+  if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+  }
+
   // For JSON requests, add Content-Type. For File Uploads (Multipart), let browser set it.
   if (!isMultipart) {
     headers['Content-Type'] = 'application/json';
@@ -107,7 +115,7 @@ export const api = {
     getAll: () => fetch(`${API_BASE_URL}/doctors?t=${Date.now()}`, { headers: getHeaders() }).then(handleResponse),
   },
 
-  // --- BILLING ---
+  // --- BILLING & PAYMENTS ---
   billing: {
     getAll: () => fetch(`${API_BASE_URL}/bills?t=${Date.now()}`, { headers: getHeaders() }).then(handleResponse),
     
@@ -125,6 +133,21 @@ export const api = {
         method: 'PATCH', 
         headers: getHeaders(), 
         body: JSON.stringify({ status: 'Paid' }) 
+      }).then(handleResponse),
+
+    // --- 🔴 NEW: RAZORPAY ENDPOINTS ---
+    createOrder: (bill_id) => 
+      fetch(`${API_BASE_URL}/payments/create-order`, { 
+        method: 'POST', 
+        headers: getHeaders(), 
+        body: JSON.stringify({ bill_id }) 
+      }).then(handleResponse),
+
+    verifyPayment: (data) => 
+      fetch(`${API_BASE_URL}/payments/verify`, { 
+        method: 'POST', 
+        headers: getHeaders(), 
+        body: JSON.stringify(data) 
       }).then(handleResponse),
   },
 
@@ -166,7 +189,7 @@ export const api = {
   upload: (formData) => 
     fetch(`${API_BASE_URL}/upload`, { 
       method: 'POST', 
-      headers: getHeaders(true), // True tells it NOT to set Content-Type (browser sets multipart boundary)
+      headers: getHeaders(true), 
       body: formData 
     }).then(handleResponse),
 };

@@ -12,7 +12,7 @@ router.get('/medicines', async (req, res) => {
     }
 });
 
-// ADD NEW MEDICINE
+// ADD NEW MEDICINE (With Real-Time Update)
 router.post('/medicines', async (req, res) => {
     const { name, type, price, stock } = req.body;
     
@@ -27,18 +27,36 @@ router.post('/medicines', async (req, res) => {
         );
         
         const [newMed] = await pool.query('SELECT * FROM Medicine WHERE medicine_id = ?', [result.insertId]);
+        
+        // --- SOCKET.IO TRIGGER START ---
+        const io = req.app.get('io'); // Get the socket instance
+        if (io) {
+            io.emit('inventory_updated', { message: 'New medicine added' });
+            console.log('⚡ Socket event emitted: New Medicine');
+        }
+        // --- SOCKET.IO TRIGGER END ---
+
         res.status(201).json(newMed[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// UPDATE STOCK
+// UPDATE STOCK (With Real-Time Update)
 router.patch('/medicines/:id', async (req, res) => {
     const { stock } = req.body;
     try {
         await pool.query('UPDATE Medicine SET stock = ? WHERE medicine_id = ?', [stock, req.params.id]);
         const [row] = await pool.query('SELECT * FROM Medicine WHERE medicine_id = ?', [req.params.id]);
+        
+        // --- SOCKET.IO TRIGGER START ---
+        const io = req.app.get('io'); // Get the socket instance
+        if (io) {
+            io.emit('inventory_updated', { message: 'Stock updated' });
+            console.log(`⚡ Socket event emitted: Stock Update (ID: ${req.params.id})`);
+        }
+        // --- SOCKET.IO TRIGGER END ---
+
         res.json({ medicine: row[0] });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -1,21 +1,14 @@
 const mysql = require('mysql2/promise');
 
-const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: 'Root@123',
-  database: 'hospital_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-};
+// FIXED MY TYPO: The Q in JQjU22i is capitalized!
+const uri = 'mysql://3WF9pNe8JQjU22i.root:sIuwPXJjaCpE8kmS@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/test?ssl={"rejectUnauthorized":true}';
 
-const pool = mysql.createPool(dbConfig);
+const pool = mysql.createPool(uri);
 
 // Test connection
 pool.getConnection()
     .then(conn => {
-        console.log('✅ MySQL Connected via config/db.js');
+        console.log('✅ TiDB Cloud Connected successfully!');
         conn.release();
     })
     .catch(err => {

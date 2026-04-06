@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Card from '../components/Card';
-// FIXED: Added 'UserX' to the imports
-import { Calendar, User, Pill, CheckSquare, Edit, Save, CreditCard, IndianRupee, BarChart3, Plus, X, RefreshCw, Activity, AlertTriangle, Stethoscope, Clock, Search, UserX } from 'lucide-react';
+import { Calendar, User, Pill, CheckSquare, Edit, Save, CreditCard, IndianRupee, BarChart3, Plus, X, RefreshCw, Activity, AlertTriangle, Stethoscope, Clock, Search, UserX, Download } from 'lucide-react';
 import { getPatientName, getDoctorName } from '../mockData';
 import { api } from '../services/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; 
+import { io } from "socket.io-client"; 
 
 const ReceptionistDashboard = ({ data, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +19,7 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
 
   // --- BILLING STATE ---
   const [bills, setBills] = useState([]);
-  const [newBillData, setNewBillData] = useState({ patient_id: '', amount: '' });
+  const [newBillData, setNewBillData] = useState({ patient_id: '', amount: '', description: 'Consultation Fee' });
   const [isBillSubmitting, setIsBillSubmitting] = useState(false);
   const [billSearch, setBillSearch] = useState(''); 
 
@@ -26,7 +28,6 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
   // Safely access prop data
   const patients = data?.patients || [];
   const appointments = data?.appointments || [];
-  const medicalRecords = data?.medicalRecords || [];
   const doctors = data?.doctors || [];
 
   // --- INITIAL FETCH ---
@@ -48,13 +49,40 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
     fetchData();
   }, []);
 
+  // --- REAL-TIME SOCKET LISTENER ---
+  useEffect(() => {
+    const socket = io("http://localhost:3001");
+
+    socket.on("inventory_updated", (data) => {
+        handleRefreshInventory(true); 
+    });
+
+    socket.on("patients_updated", () => {
+        api.patients.getAll().then(freshPatients => {
+            onUpdate(prev => ({ ...prev, patients: freshPatients }));
+        });
+    });
+
+    socket.on("appointment_updated", () => {
+        api.appointments.getAll().then(allAppts => {
+            onUpdate(prev => ({ ...prev, appointments: allAppts }));
+        });
+    });
+
+    socket.on("billing_updated", () => {
+        api.billing.getAll().then(billsData => setBills(billsData));
+    });
+
+    return () => socket.disconnect();
+  }, [onUpdate]);
+
   // --- AUTO-SYNC INVENTORY ---
   useEffect(() => {
     const intervalId = setInterval(() => {
         if (editingMedicine.id === null) {
             handleRefreshInventory(true);
         }
-    }, 10000); 
+    }, 15000); 
     return () => clearInterval(intervalId);
   }, [editingMedicine.id]); 
 
@@ -97,14 +125,13 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
     setIsBillSubmitting(true);
     try {
         const newBill = await api.billing.create(newBillData);
-        setBills([newBill, ...bills]);
-        setNewBillData({ patient_id: '', amount: '' });
+        setBills([newBill, ...bills]); 
+        setNewBillData({ patient_id: '', amount: '', description: 'Consultation Fee' });
         setBillSearch('');
     } catch (error) { console.error(error); } 
     finally { setIsBillSubmitting(false); }
   };
 
-  // --- EDITABLE BILL STATUS ---
   const handleUpdateBillStatus = async (billId, newStatus) => {
     setBills(prev => prev.map(b => b.bill_id === billId ? { ...b, status: newStatus } : b));
     try { 
@@ -125,7 +152,6 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
     } catch (error) { console.error(error); }
   };
 
-  // --- NO SHOW HANDLER ---
   const handleNoShow = async (appointmentId, patientId) => {
     if (!window.confirm("Mark as 'No Show'?\nThis will Cancel the appointment AND deduct 10 Compliance Points.")) return;
     const patient = patients.find(p => p.patient_id === patientId);
@@ -146,6 +172,56 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
     } catch (error) { console.error("Failed to mark No Show", error); }
   };
 
+  // --- PDF GENERATOR ---
+  const generatePDF = (bill, patient) => {
+    try {
+      const doc = new jsPDF();
+
+      doc.setFillColor(79, 70, 229); 
+      doc.rect(0, 0, 210, 40, 'F'); 
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.text("Pulse HMS", 14, 20);
+      doc.setFontSize(10);
+      doc.text("Excellence in Healthcare Management", 14, 28);
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+      doc.text(`Invoice #: ${bill.bill_id}`, 150, 20);
+      doc.text(`Date: ${new Date(bill.issued_date).toLocaleDateString()}`, 150, 26);
+
+      doc.setFontSize(14);
+      doc.text("Patient Details", 14, 55);
+      doc.setFontSize(10);
+      doc.text(`Name: ${patient?.name || bill.patient_name || 'N/A'}`, 14, 65);
+      doc.text(`Phone: ${patient?.phone || bill.phone || 'N/A'}`, 14, 71);
+      doc.text(`Status: ${bill.status}`, 14, 77);
+
+      autoTable(doc, {
+        startY: 85,
+        head: [['Description', 'Amount']],
+        body: [
+          [bill.description || 'Medical Services', `Rs. ${bill.amount}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229] },
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.text(`Total Amount: Rs. ${bill.amount}`, 140, finalY);
+
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text("Thank you for choosing Pulse HMS.", 14, 280);
+
+      doc.save(`Invoice_${bill.patient_name || 'Patient'}_${bill.bill_id}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Failed to generate PDF invoice.");
+    }
+  };
+
   // --- FILTERS & SORTING ---
   const sortedAppointments = useMemo(() => {
       return [...appointments].sort((a, b) => {
@@ -160,7 +236,7 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
         const pAppts = appointments.filter(a => a.patient_id === p.patient_id);
         const lastAppt = pAppts.sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))[0];
         const pBills = bills.filter(b => b.patient_id === p.patient_id);
-        const lastBill = pBills.sort((a, b) => new Date(b.bill_date) - new Date(a.bill_date))[0];
+        const lastBill = pBills.sort((a, b) => new Date(b.issued_date) - new Date(a.issued_date))[0];
 
         return {
             ...p,
@@ -172,14 +248,13 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
     }).filter(p => (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) || (p.phone && p.phone.includes(searchTerm)));
   }, [patients, appointments, bills, searchTerm]);
 
-  // Filter for Billing Dropdown
   const billingPatients = patients.filter(p => 
     p.name.toLowerCase().includes(billSearch.toLowerCase()) || 
     p.phone.includes(billSearch)
   );
 
   const todayAppointments = appointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0] && a.status !== 'Cancelled');
-  const pendingBills = bills.filter(b => b.status === 'Unpaid');
+  const pendingBills = bills.filter(b => b.status === 'Pending');
   const getMaxCount = (arr, key) => Math.max(...arr.map(i => i[key]), 1);
 
   return (
@@ -197,28 +272,28 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
 
       {/* STATS OVERVIEW */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3 bg-blue-50 rounded-xl text-blue-600"><Calendar className="w-8 h-8" /></div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Visits</p>
             <p className="text-3xl font-black text-slate-800">{todayAppointments.length}</p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3 bg-orange-50 rounded-xl text-orange-600"><CreditCard className="w-8 h-8" /></div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Bills</p>
             <p className="text-3xl font-black text-slate-800">{pendingBills.length}</p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3 bg-red-50 rounded-xl text-red-600"><AlertTriangle className="w-8 h-8" /></div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Low Stock</p>
             <p className="text-3xl font-black text-slate-800">{inventoryList.filter(m => m.stock < 50).length}</p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-center gap-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
           <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600"><Stethoscope className="w-8 h-8" /></div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Doctors</p>
@@ -263,19 +338,19 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleUpdateAppointment(a.appointment_id, { status: 'Completed' })}
-                                        className="flex items-center bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-all"
+                                        className="flex items-center bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200"
                                     >
                                         <CheckSquare className="w-3 h-3 mr-1.5" /> Complete
                                     </button>
                                     <button
                                         onClick={() => handleUpdateAppointment(a.appointment_id, { status: 'Cancelled' })}
-                                        className="flex items-center bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-200 transition-all"
+                                        className="flex items-center bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-200"
                                     >
                                         <X className="w-3 h-3 mr-1.5" /> Cancel
                                     </button>
                                     <button
                                         onClick={() => handleNoShow(a.appointment_id, a.patient_id)}
-                                        className="flex items-center bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200 transition-all"
+                                        className="flex items-center bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200"
                                         title="Mark No Show (-10 pts)"
                                     >
                                         <UserX className="w-3 h-3 mr-1.5" /> No Show
@@ -311,10 +386,9 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
                     <form onSubmit={handleCreateBill} className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-100 mb-4">
                         <div className="flex items-center gap-2 mb-1">
                             <div className="p-1.5 bg-indigo-100 rounded-md text-indigo-600"><Plus className="w-4 h-4"/></div>
-                            <p className="font-bold text-sm text-slate-700 uppercase tracking-wide">New Invoice</p>
+                            <p className="font-bold text-sm text-slate-700 uppercase tracking-wide">Manual Invoice</p>
                         </div>
                         
-                        {/* SEARCHABLE DROPDOWN */}
                         <div className="space-y-2">
                             <div className="relative">
                                 <Search className="w-4 h-4 absolute left-3 top-3.5 text-slate-400 pointer-events-none" />
@@ -341,31 +415,61 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
                             </select>
                         </div>
 
+                        <input 
+                            type="text" 
+                            placeholder="Description (e.g., Consultation Fee)" 
+                            className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" 
+                            value={newBillData.description} 
+                            onChange={(e)=>setNewBillData({...newBillData, description: e.target.value})} 
+                        />
+
                         <div className="relative">
                             <IndianRupee className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                            <input type="number" placeholder="Amount" className="w-full p-3 pl-9 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" value={newBillData.amount} onChange={(e)=>setNewBillData({...newBillData, amount: e.target.value})} required />
+                            <input 
+                                type="number" 
+                                placeholder="Amount" 
+                                className="w-full p-3 pl-9 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition" 
+                                value={newBillData.amount} 
+                                onChange={(e)=>setNewBillData({...newBillData, amount: e.target.value})} 
+                                required 
+                            />
                         </div>
-                        <button type="submit" disabled={isBillSubmitting} className="w-full bg-slate-800 text-white py-3 rounded-lg text-sm font-bold hover:bg-slate-900 transition shadow-lg">{isBillSubmitting ? 'Generating...' : 'Generate Bill'}</button>
+                        <button type="submit" disabled={isBillSubmitting} className="w-full bg-slate-800 text-white py-3 rounded-lg text-sm font-bold hover:bg-slate-900 shadow-md">{isBillSubmitting ? 'Generating...' : 'Generate Bill'}</button>
                     </form>
                 </div>
                 
-                <div className="flex-grow overflow-y-auto max-h-64 pr-1 custom-scrollbar border-t border-slate-50 pt-2">
-                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 px-1">All Invoices</p>
+                <div className="flex-grow overflow-y-auto max-h-[300px] pr-1 custom-scrollbar border-t border-slate-50 pt-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 px-1">Recent Invoices</p>
                     {bills.length === 0 ? <p className="text-center text-slate-400 py-4 text-sm">No records.</p> : (
                         <div className="space-y-2">{bills.map(b=>(
                             <div key={b.bill_id} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg hover:border-indigo-100 transition">
-                                <div><p className="text-sm font-bold text-slate-700">{b.patient_name}</p><p className="text-xs text-slate-500">₹{b.amount}</p></div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700">{b.patient_name}</p>
+                                    <p className="text-xs text-slate-500 w-32 truncate" title={b.description}>{b.description}</p>
+                                    <p className="text-sm font-bold text-indigo-600 mt-1">₹{b.amount}</p>
+                                </div>
                                 
-                                {/* EDITABLE BILL STATUS */}
-                                <select 
-                                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer focus:ring-1 focus:ring-indigo-500 ${b.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}
-                                    value={b.status}
-                                    onChange={(e) => handleUpdateBillStatus(b.bill_id, e.target.value)}
-                                >
-                                    <option value="Unpaid">Unpaid</option>
-                                    <option value="Paid">Paid</option>
-                                </select>
-
+                                <div className="flex flex-col items-end gap-2">
+                                  <select 
+                                      className={`text-[10px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer focus:ring-1 focus:ring-indigo-500 ${
+                                          b.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 
+                                          b.status === 'Cancelled' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                                      }`}
+                                      value={b.status}
+                                      onChange={(e) => handleUpdateBillStatus(b.bill_id, e.target.value)}
+                                  >
+                                      <option value="Pending">Pending</option>
+                                      <option value="Paid">Paid</option>
+                                      <option value="Cancelled">Cancelled</option>
+                                  </select>
+                                  <button 
+                                      onClick={() => generatePDF(b, patients.find(p => parseInt(p.patient_id) === parseInt(b.patient_id)))}
+                                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                                      title="Download Invoice"
+                                  >
+                                      <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                             </div>
                         ))}</div>
                     )}
@@ -455,7 +559,7 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
                 value={searchTerm} 
                 onChange={(e)=>setSearchTerm(e.target.value)} 
             />
-            <User className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+            <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
           </div>
           <div className="overflow-x-auto rounded-xl border border-slate-100">
               <table className="min-w-full text-sm divide-y divide-slate-100">
@@ -479,7 +583,10 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
                                   {p.billStatus === 'N/A' ? <span className="text-slate-300">-</span> : (
                                       <div className="flex flex-col">
                                           <span className="font-bold text-slate-700">₹{p.billAmount}</span>
-                                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full w-fit mt-1 ${p.billStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{p.billStatus}</span>
+                                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full w-fit mt-1 ${
+                                              p.billStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 
+                                              p.billStatus === 'Cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                          }`}>{p.billStatus}</span>
                                       </div>
                                   )}
                               </td>
