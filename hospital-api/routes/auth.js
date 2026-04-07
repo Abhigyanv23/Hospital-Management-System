@@ -6,6 +6,9 @@ const pool = require('../config/db');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// 🔴 THE FIX: Force Node.js to use IPv4 to bypass Render's IPv6 network block
+require('dns').setDefaultResultOrder('ipv4first');
+
 const { sendWelcomeEmail } = require('../utils/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_hospital_key_2025';
