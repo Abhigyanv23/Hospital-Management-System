@@ -161,7 +161,7 @@ const StaffLogin = ({ role, onLoginSuccess }) => {
                   <form onSubmit={handleSendResetOtp} className="space-y-4">
                       <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Registered Email</label>
-                          <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition" placeholder="doctor@hospital.com" required />
+                          <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition" placeholder="staff/doctor@hospital.com" required />
                       </div>
                       <button type="submit" disabled={isSendingOtp} className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center ${theme.bg} ${theme.hoverBg} disabled:opacity-50`}>
                           {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : 'Send Reset Link'}

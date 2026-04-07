@@ -294,34 +294,31 @@ const PatientLogin = ({ onLoginSuccess, onRegister }) => {
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Email Address</label>
             <div className="relative">
                 <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
-                <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring}`} placeholder="john@example.com" required />
+                <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring} ${otpSent ? 'bg-slate-50 text-slate-500' : ''}`} placeholder="john@example.com" disabled={otpSent} required />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Phone Number</label>
-            <div className="flex gap-2">
-                <div className="relative flex-grow">
-                    <Phone className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
-                    <input type="tel" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className={`w-full p-3 pl-10 border rounded-xl outline-none transition ${theme.ring} ${otpSent ? 'bg-slate-50 text-slate-500 border-slate-200' : 'border-slate-200'}`} placeholder="10-digit number" maxLength="10" disabled={otpSent} required />
-                </div>
-                {!otpSent ? (
-                    <button type="button" onClick={handleSendOtp} disabled={isSendingOtp || regPhone.length !== 10 || !regEmail.includes('@')} className={`px-4 rounded-xl font-bold text-white transition-all flex items-center disabled:opacity-50 whitespace-nowrap ${theme.bg} ${theme.hoverBg}`}>
-                        {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : <><Send className="w-4 h-4 mr-2"/> OTP</>}
-                    </button>
-                ) : (
-                    <div className="flex items-center text-emerald-600 bg-emerald-50 px-4 rounded-xl font-bold border border-emerald-100">
-                        <CheckCircle className="w-5 h-5 mr-1"/> Sent
-                    </div>
-                )}
+            <div className="relative">
+                <Phone className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" />
+                <input type="tel" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className={`w-full p-3 pl-10 border border-slate-200 rounded-xl outline-none transition ${theme.ring} ${otpSent ? 'bg-slate-50 text-slate-500' : ''}`} placeholder="10-digit number" maxLength="10" disabled={otpSent} required />
             </div>
           </div>
 
-          {otpSent && (
-            <div className="animate-slide-in p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                <label className="block text-xs font-bold text-indigo-700 uppercase mb-2 text-center">Enter Verification Code</label>
-                <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className={`w-full p-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-500 font-mono text-center text-lg tracking-[0.5em] outline-none bg-white`} maxLength="6" placeholder="------" required />
-            </div>
+          {/* 🔴 NEW: DEDICATED EMAIL OTP SECTION */}
+          {!otpSent ? (
+              <button type="button" onClick={handleSendOtp} disabled={isSendingOtp || regPhone.length !== 10 || !regEmail.includes('@')} className={`w-full py-3 rounded-xl font-bold text-white shadow-md transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center disabled:opacity-50 mt-2 ${theme.bg} ${theme.hoverBg}`}>
+                  {isSendingOtp ? <LoaderCircle className="animate-spin w-5 h-5"/> : <><Send className="w-4 h-4 mr-2"/> Send OTP to Email</>}
+              </button>
+          ) : (
+              <div className="animate-slide-in p-5 bg-indigo-50 rounded-xl border border-indigo-100 mt-2 shadow-inner">
+                  <div className="flex items-center justify-center text-indigo-700 font-bold mb-4">
+                      <CheckCircle className="w-5 h-5 mr-2 text-emerald-500"/> OTP Sent to Inbox!
+                  </div>
+                  <label className="block text-xs font-bold text-indigo-700 uppercase mb-2 text-center">Enter 6-Digit Code</label>
+                  <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} className={`w-full p-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-500 font-mono text-center text-xl tracking-[0.5em] outline-none bg-white`} maxLength="6" placeholder="------" required />
+              </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
