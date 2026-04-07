@@ -16,9 +16,7 @@ const otpStore = {}; // In-Memory store for Email OTPs
 // 📧 NODEMAILER CONFIGURATION 
 // ==========================================
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false, 
+    service: 'gmail', // 🔴 THE FIX: Let Nodemailer handle the Google ports automatically
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
