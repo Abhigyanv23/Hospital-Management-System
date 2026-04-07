@@ -32,13 +32,20 @@ app.set('trust proxy', 1);
 
 // 🔴 RENDER FIX: Allow the cloud to assign the port dynamically
 const PORT = process.env.PORT || 3001;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// ==========================================
+// 🔴 THE CORS FIX: Array of allowed websites
+// ==========================================
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'https://hospital-portal-3ver.onrender.com'
+];
 
 const server = http.createServer(app); 
 
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
+    origin: ALLOWED_ORIGINS, // <-- Applied the array here for WebSockets
     methods: ["GET", "POST"]
   }
 });
@@ -64,14 +71,14 @@ const apiLimiter = rateLimit({
 // 3. Strict Auth Limiter (Prevents Brute-Force Password Hacking)
 const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour window
-    max: 1000, // Start blocking after 10 failed login/OTP attempts
+    max: 1000, // Start blocking after 1000 failed login/OTP attempts
     message: { error: 'Too many login attempts from this IP, please try again after an hour.' }
 });
 
 // Standard Parsers
 app.use(express.json());
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: ALLOWED_ORIGINS, // <-- Applied the array here for the API
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
