@@ -42,7 +42,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
 
   // --- REAL-TIME SOCKET LISTENER ---
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io(""https://hospital-management-system-z8ay.onrender.com);
 
     socket.on("patients_updated", (eventData) => {
         if (parseInt(eventData.patient_id) === parseInt(userId)) {
@@ -360,7 +360,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
                                         </button>
                                         
                                         {rec.file_path && (
-                                            <a href={`http://localhost:3001${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 font-bold hover:bg-slate-50 transition">
+                                            <a href={`https://hospital-management-system-z8ay.onrender.com${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 font-bold hover:bg-slate-50 transition">
                                                 📎 File
                                             </a>
                                         )}

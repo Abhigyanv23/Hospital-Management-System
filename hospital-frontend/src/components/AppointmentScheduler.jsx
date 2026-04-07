@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, AlertCircle, Sparkles, BrainCircuit } from 'lucide-react'; 
 import Card from './Card'; 
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'https://hospital-management-system-z8ay.onrender.com/api';
 
 const AppointmentScheduler = ({ patientId, doctors, onSchedule }) => {
   const [selectedDoctorId, setSelectedDoctorId] = useState('');

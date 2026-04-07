@@ -51,7 +51,7 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
 
   // --- REAL-TIME SOCKET LISTENER ---
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io("https://hospital-management-system-z8ay.onrender.com");
 
     socket.on("inventory_updated", (data) => {
         handleRefreshInventory(true); 
@@ -135,7 +135,7 @@ const ReceptionistDashboard = ({ data, onUpdate }) => {
   const handleUpdateBillStatus = async (billId, newStatus) => {
     setBills(prev => prev.map(b => b.bill_id === billId ? { ...b, status: newStatus } : b));
     try { 
-        await fetch(`http://localhost:3001/api/bills/${billId}`, {
+        await fetch(`https://hospital-management-system-z8ay.onrender.com/api/bills/${billId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })

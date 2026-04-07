@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LoaderCircle, KeyRound, UserCircle, ArrowLeft } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3001/api'; 
+const API_BASE_URL = 'https://hospital-management-system-z8ay.onrender.com/api'; 
 
 const StaffLogin = ({ role, onLoginSuccess }) => {
   // --- 1. LOGIN STATE ---

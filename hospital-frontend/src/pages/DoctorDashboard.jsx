@@ -50,7 +50,7 @@ const DoctorDashboard = ({ data, userId }) => {
 
   // --- REAL-TIME LISTENERS ---
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io("https://hospital-management-system-z8ay.onrender.com");
 
     // 1. Inventory Updates (New Medicines added)
     socket.on("inventory_updated", () => {
@@ -304,7 +304,7 @@ const DoctorDashboard = ({ data, userId }) => {
                                             <p className="text-xs font-bold text-slate-400 uppercase mt-1">{rec.visit_date.split('T')[0]}</p>
                                         </div>
                                         {rec.file_path && (
-                                            <a href={`http://localhost:3001${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition">
+                                            <a href={`https://hospital-management-system-z8ay.onrender.com${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition">
                                                 📎 File
                                             </a>
                                         )}
