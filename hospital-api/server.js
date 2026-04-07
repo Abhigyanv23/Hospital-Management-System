@@ -28,6 +28,7 @@ const triageRoutes = require('./routes/triage');
 const paymentRoutes = require('./routes/payments');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 🔴 RENDER FIX: Allow the cloud to assign the port dynamically
 const PORT = process.env.PORT || 3001;
