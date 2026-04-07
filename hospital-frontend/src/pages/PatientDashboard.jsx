@@ -42,7 +42,7 @@ const PatientDashboard = ({ userId, data, onSchedule, onUpdate }) => {
 
   // --- REAL-TIME SOCKET LISTENER ---
   useEffect(() => {
-    const socket = io(""https://hospital-management-system-z8ay.onrender.com);
+    const socket = io("https://hospital-management-system-z8ay.onrender.com");
 
     socket.on("patients_updated", (eventData) => {
         if (parseInt(eventData.patient_id) === parseInt(userId)) {
