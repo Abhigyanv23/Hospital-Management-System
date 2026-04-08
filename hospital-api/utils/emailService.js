@@ -4,19 +4,17 @@ require('dotenv').config();
 // 📧 MASTER EMAILJS SERVICE HUB
 // ==========================================
 
-// 1. Core Engine: Sends emails via EmailJS REST API
+// --- CORE ENGINE ---
 const sendEmailJS = async (template_id, template_params) => {
     try {
         const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 service_id: process.env.EMAILJS_SERVICE_ID,
                 template_id: template_id,
                 user_id: process.env.EMAILJS_PUBLIC_KEY, 
-                accessToken: process.env.EMAILJS_PRIVATE_KEY, // Required for backend calls
+                accessToken: process.env.EMAILJS_PRIVATE_KEY,
                 template_params: template_params
             })
         });
@@ -27,7 +25,7 @@ const sendEmailJS = async (template_id, template_params) => {
             return false;
         }
 
-        console.log(`✅ Email sent successfully via EmailJS [${template_id}]`);
+        console.log(`✅ Email sent successfully via EmailJS`);
         return true;
     } catch (error) {
         console.error("❌ Network Error:", error);
@@ -35,33 +33,61 @@ const sendEmailJS = async (template_id, template_params) => {
     }
 };
 
+// --- HELPER: Expiration Time Calculator ---
+const getExpirationTime = () => {
+    const expireDate = new Date(Date.now() + 10 * 60000); // 10 mins from now
+    return expireDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
 // ==========================================
-// 🚀 EMAIL TRIGGERS
+// 🚀 THE CORE FOUR EMAIL TRIGGERS
 // ==========================================
 
-// 2. Welcome Email Function
-const sendWelcomeEmail = async (patientEmail, patientName) => {
-    // Note: Make sure your EmailJS Welcome Template has {{patient_name}} and {{to_email}} tags
-    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_WELCOME, {
-        to_email: patientEmail,
-        patient_name: patientName
+// 1. REGISTRATION OTP (Uses the Passcode Template: EMAILJS_TEMPLATE_PASSCODE)
+const sendRegistrationOtpEmail = async (to, otp) => {
+    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_PASSCODE, {
+        to_email: to,
+        message: 'Welcome to Pulse HMS! To complete your registration, please use the following Security Verification Code.',
+        passcode: otp,
+        time: getExpirationTime()
     });
 };
 
-// 3. Appointment Confirmation Function
-const sendAppointmentConfirmation = async (patientEmail, patientName, doctorName, date, time) => {
-    // Note: Make sure your EmailJS Appointment Template has these exact tags
-    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_APPT, {
+// 2. PASSWORD RESET (Uses the Passcode Template: EMAILJS_TEMPLATE_PASSCODE)
+const sendResetEmail = async (to, otp) => {
+    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_PASSCODE, {
+        to_email: to,
+        message: 'You requested to reset your password. If you did not request this, please ignore this email immediately to secure your account.',
+        passcode: otp,
+        time: getExpirationTime()
+    });
+};
+
+// 3. WELCOME EMAIL (Uses the Universal Notification Template: EMAILJS_TEMPLATE_WELCOME)
+const sendWelcomeEmail = async (patientEmail, patientName) => {
+    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_WELCOME, {
         to_email: patientEmail,
+        header: 'Welcome to the Pulse HMS Family!',
         patient_name: patientName,
-        doctor_name: doctorName,
-        appointment_date: date,
-        appointment_time: time
+        body_text: 'Your patient portal account has been successfully created. You can now log in securely to book appointments, view your medical history, and manage your health records all in one place.',
+        highlight_text: 'Portal Access is now Active. We are excited to have you on board!'
+    });
+};
+
+// 4. APPOINTMENT REMINDER (Uses the Universal Notification Template: EMAILJS_TEMPLATE_WELCOME)
+const sendAppointmentConfirmation = async (patientEmail, patientName, doctorName, date, time) => {
+    return await sendEmailJS(process.env.EMAILJS_TEMPLATE_WELCOME, {
+        to_email: patientEmail,
+        header: 'Appointment Confirmed ✅',
+        patient_name: patientName,
+        body_text: `Your upcoming appointment with Dr. ${doctorName} has been successfully scheduled in our system. Please try to arrive 10 minutes early.`,
+        highlight_text: `📅 Date: ${date} | ⏰ Time: ${time}`
     });
 };
 
 module.exports = { 
+    sendRegistrationOtpEmail,
+    sendResetEmail,
     sendWelcomeEmail, 
-    sendAppointmentConfirmation,
-    sendEmailJS // Exporting the core engine so auth.js can use it!
+    sendAppointmentConfirmation
 };
