@@ -26,14 +26,14 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
     },
+    // 🔴 THE IPv6 KILLER: Force the actual network socket to use IPv4
+    family: 4, 
     tls: {
-        // Force Node to accept Render's internal network proxies
         rejectUnauthorized: false 
     },
-    // Extend the timeout so the server doesn't give up too early
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
 });
 
 // Email Template for Registration OTP
