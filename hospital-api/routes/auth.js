@@ -3,99 +3,25 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
-const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// 🔴 THE FIX: Force Node.js to use IPv4 to bypass Render's IPv6 network block
-require('dns').setDefaultResultOrder('ipv4first');
-
-const { sendWelcomeEmail } = require('../utils/emailService');
+// 🔴 Import the centralized EmailJS functions from our Master Hub
+const { 
+    sendRegistrationOtpEmail, 
+    sendResetEmail, 
+    sendWelcomeEmail 
+} = require('../utils/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_hospital_key_2025';
 
 const otpStore = {}; // In-Memory store for Email OTPs
 
 // ==========================================
-// 📧 NODEMAILER CONFIGURATION (Cloud-Safe)
-// ==========================================
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Force SSL
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    },
-    // 🔴 THE IPv6 KILLER: Force the actual network socket to use IPv4
-    family: 4, 
-    tls: {
-        rejectUnauthorized: false 
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000
-});
-
-// Email Template for Registration OTP
-const sendRegistrationOtpEmail = async (to, otp) => {
-    const mailOptions = {
-        from: `"Pulse HMS Registration" <${process.env.SMTP_USER}>`,
-        to: to,
-        subject: 'Your Registration Code - Pulse HMS',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #4F46E5;">Welcome to Pulse HMS!</h2>
-                <p>To complete your registration, please use the following One-Time Password (OTP):</p>
-                <h1 style="background: #f3f4f6; padding: 10px 20px; display: inline-block; letter-spacing: 5px; border-radius: 8px;">${otp}</h1>
-                <p>This code expires in <strong>10 minutes</strong>.</p>
-            </div>
-        `
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`📧 Registration OTP sent to ${to}`);
-        return true;
-    } catch (error) {
-        console.error("❌ Email Error:", error);
-        return false;
-    }
-};
-
-// Email Template for Password Reset
-const sendResetEmail = async (to, otp) => {
-    const mailOptions = {
-        from: `"Pulse HMS Support" <${process.env.SMTP_USER}>`,
-        to: to,
-        subject: 'Password Reset Request - Pulse HMS',
-        html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #4F46E5;">Password Reset Request</h2>
-                <p>You requested to reset your password. Your One-Time Password (OTP) is:</p>
-                <h1 style="background: #f3f4f6; padding: 10px 20px; display: inline-block; letter-spacing: 5px; border-radius: 8px;">${otp}</h1>
-                <p>This code expires in <strong>10 minutes</strong>.</p>
-                <p style="font-size: 12px; color: #666; margin-top: 20px;">If you did not request this, please ignore this email.</p>
-            </div>
-        `
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`📧 Reset Email sent to ${to}`);
-        return true;
-    } catch (error) {
-        console.error("❌ Email Error:", error);
-        return false;
-    }
-};
-
-// ==========================================
-// 1. REGISTRATION ROUTES (NOW USING EMAIL)
+// 1. REGISTRATION ROUTES (USING EMAILJS)
 // ==========================================
 
 // Send Email OTP
 router.post('/send-otp', async (req, res) => {
-    // 🔴 CHANGED: We now require the email to send the OTP
     const { email, phone } = req.body;
     
     if (!email || !email.includes('@')) {
@@ -116,6 +42,7 @@ router.post('/send-otp', async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         otpStore[email] = otp; // Store OTP mapped to email
 
+        // 🔴 Fire the EmailJS OTP Trigger
         const emailSent = await sendRegistrationOtpEmail(email, otp);
         
         if (emailSent) {
@@ -135,7 +62,6 @@ router.post('/patients', async (req, res) => {
     
     if (!name || !email || !phone || !password || !otp) return res.status(400).json({ error: 'Missing required fields.' });
 
-    // 🔴 CHANGED: Check the OTP against the email instead of the phone
     if (otpStore[email] !== otp) return res.status(400).json({ error: 'Invalid or expired OTP.' });
 
     try {
@@ -147,6 +73,7 @@ router.post('/patients', async (req, res) => {
         );
         delete otpStore[email]; 
 
+        // 🔴 Fire the EmailJS Welcome Trigger
         sendWelcomeEmail(email, name);
 
         res.status(201).json({ patient_id: result.insertId, name, phone, email });
@@ -232,8 +159,9 @@ router.post('/forgot-password', async (req, res) => {
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60000); 
 
+        // 🔴 Fire the EmailJS Reset Trigger
         const emailSent = await sendResetEmail(email, otp);
-        if (!emailSent) return res.status(500).json({ error: 'Failed to send email. Check SMTP config.' });
+        if (!emailSent) return res.status(500).json({ error: 'Failed to send email. Check EmailJS config.' });
 
         await pool.query(
             'INSERT INTO passwordreset (email, otp, role, expires_at) VALUES (?, ?, ?, ?)',
