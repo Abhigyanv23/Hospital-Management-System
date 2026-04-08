@@ -16,14 +16,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_hospital_key_202
 const otpStore = {}; // In-Memory store for Email OTPs
 
 // ==========================================
-// 📧 NODEMAILER CONFIGURATION 
+// 📧 NODEMAILER CONFIGURATION (Cloud-Safe)
 // ==========================================
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // 🔴 THE FIX: Let Nodemailer handle the Google ports automatically
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Force SSL
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-    }
+    },
+    tls: {
+        // Force Node to accept Render's internal network proxies
+        rejectUnauthorized: false 
+    },
+    // Extend the timeout so the server doesn't give up too early
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000
 });
 
 // Email Template for Registration OTP
