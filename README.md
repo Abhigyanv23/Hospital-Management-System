@@ -12,4 +12,20 @@
 <img src="https://img.shields.io/badge/Architecture-MVC-blue" />
 </p>
 
+Pulse HMS is a production-grade, full-stack healthcare platform designed to streamline hospital operations. It implements secure authentication, transactional workflows, and role-based portals for Doctors, Receptionists, and Patients.
 
+The system focuses on real-world hospital workflows such as appointment scheduling, billing, inventory tracking, prescription management, and digital medical records.
+
+---
+
+# Key Features
+
+## Architecture, Security & Infrastructure
+
+### MVC Backend Architecture
+- Modular Node.js and Express backend  
+- Structured architecture using:
+  /routes
+/controllers
+/utils
+/config
