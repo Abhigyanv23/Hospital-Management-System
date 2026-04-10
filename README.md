@@ -8,3 +8,5 @@
   <img src="https://img.shields.io/badge/Auth-JWT-black" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
+
+![Deployment](https://img.shields.io/badge/Hosted%20On-Render-purple)
