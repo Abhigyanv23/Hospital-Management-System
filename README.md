@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
 </p>
 
+<p align="center">
 ![Deployment](https://img.shields.io/badge/Hosted%20On-Render-purple)
 
 
