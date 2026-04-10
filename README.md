@@ -205,16 +205,6 @@ Hosted using:
 
 ---
 
-# Future Improvements
-
-- SMS notification integration  
-- Role-based analytics expansion  
-- Advanced reporting dashboards  
-- Cloud storage for medical files  
-- Multi-hospital support  
-
----
-
 # Author
 
 **Abhigyan**
