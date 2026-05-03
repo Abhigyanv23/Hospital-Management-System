@@ -1,49 +1,212 @@
-#  Pulse: Hospital Management System
+# Pulse HMS — Hospital Management System
 
-**Pulse HMS** is a production-grade, full-stack healthcare platform designed to streamline hospital operations. It features Role-Based Access Control (RBAC) with distinct, secure portals for **Doctors**, **Receptionists**, and **Patients**, backed by a transactional database system.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production--Ready-success" />
+  <img src="https://img.shields.io/badge/Frontend-React.js-blue?logo=react" />
+  <img src="https://img.shields.io/badge/Backend-Node.js-green?logo=node.js" />
+  <img src="https://img.shields.io/badge/Database-MySQL-orange?logo=mysql" />
+  <img src="https://img.shields.io/badge/Auth-JWT-black" />
+  <img src="https://img.shields.io/badge/Hosted%20On-Render-purple" />
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
+  <img src="https://img.shields.io/badge/API-REST-orange" />
+<img src="https://img.shields.io/badge/Architecture-MVC-blue" />
+</p>
 
-![Status](https://img.shields.io/badge/Status-Completed-success?style=flat&logo=git)
-![Stack](https://img.shields.io/badge/Stack-MERN_(MySQL)-blue?style=flat&logo=react)
-![License](https://img.shields.io/badge/License-MIT-green)
+Pulse HMS is a production-grade, full-stack healthcare platform designed to streamline hospital operations. It implements secure authentication, transactional workflows, and role-based portals for Doctors, Receptionists, and Patients.
 
-##  Key Features
-
-###  Architecture & Security
-* **MVC Backend:** Modular Node.js/Express architecture (`routes/`, `controllers/`, `config/`).
-* **Centralized API:** robust frontend service layer for clean data fetching.
-* **Security:** `Bcrypt` password hashing and `JWT` (JSON Web Token) authentication.
-* **OTP Verification:** Twilio-integrated mobile verification for patient registration.
-
-###  Doctor Portal
-* **Live Analytics:** Dashboard tracking average ratings, patient volume, and completed visits.
-* **Smart Prescriptions:** Transactional system that deducts medicine from **Inventory** instantly upon prescription.
-* **Digital Medical Records:** Create diagnoses, treatment plans, and upload attachments (X-Rays/Reports).
-* **Patient Directory:** Searchable history of all treated patients with one-click access to records.
-* **Compliance Tracking:** Unique "Compliance Score" system (0-100) to monitor patient adherence.
-
-###  Receptionist (Admin) Console
-* **Operational Analytics:** Visual charts for **"Peak Visiting Hours"**.
-* **Inventory Management:** Real-time stock tracking with auto-sync and low-stock alerts.
-* **Billing System:** Generate invoices with patient search and track status (Paid/Unpaid).
-* **Appointment Manager:** Global schedule view with options to Mark Completed, Cancel, or flag "No Shows".
-
-###  Patient Portal
-* **Smart Scheduling:** Book appointments with specific hourly slots (10 AM - 10 PM).
-* **Conflict Prevention:** Backend logic prevents double-booking or past-date selection.
-* **Medical History:** View full diagnosis history, including specific **Medicine Dosages & Durations**.
-* **Transparency:** View Doctor Star Ratings before booking.
-* **Report Export:** One-click download of medical and billing history (`.txt` summary).
+The system focuses on real-world hospital workflows such as appointment scheduling, billing, inventory tracking, prescription management, and digital medical records.
 
 ---
 
-##  Tech Stack
+# Key Features
+
+## Architecture, Security & Infrastructure
+
+### MVC Backend Architecture
+- Modular Node.js and Express backend  
+- Structured architecture using:
+  /routes
+/controllers
+/utils
+/config
+
+- Designed for scalability and maintainability
+
+### Cloud-Resilient Email Architecture
+- Fully decoupled Email Hub powered by EmailJS REST API  
+- Designed to bypass strict IPv6/SMTP firewall limitations  
+- Ensures reliable email delivery in cloud-hosted environments  
+
+### Universal Notification System
+Dynamic templates supporting:
+- Registration OTPs  
+- Password Reset OTPs  
+- Welcome Emails  
+- Appointment Reminders  
+
+### Authentication & Security
+- JWT-based session management  
+- Bcrypt password hashing  
+- Time-limited OTP-based verification  
+- Secure password recovery workflows  
+
+---
+
+# Doctor Portal
+
+Designed to support clinical workflows and patient management.
+
+## Features:
+- Live analytics dashboard tracking:
+- Average ratings  
+- Patient volume  
+- Completed visits  
+
+- Smart prescription system:
+- Automatically deducts medicines from central inventory  
+- Maintains accurate stock records  
+
+- Digital medical records:
+- Add diagnosis and treatment plans  
+- Upload attachments such as X-Rays and Lab Reports  
+
+- Patient directory:
+- Searchable patient history  
+- Quick access to historical medical records  
+
+- Compliance tracking:
+- Compliance Score (0–100)  
+- Tracks patient adherence to treatment plans  
+
+---
+
+# Receptionist (Admin) Console
+
+Built to manage hospital operations and administrative workflows.
+
+## Features:
+- Operational analytics:
+- Charts displaying peak visiting hours  
+- Helps optimize staffing  
+
+- Inventory management:
+- Real-time pharmacy stock tracking  
+- Automatic updates from prescriptions  
+- Low-stock alerts  
+
+- Billing system:
+- Generate invoices  
+- Track payment status (Paid / Unpaid)  
+
+- Appointment manager:
+- Global scheduling interface  
+- Administrative controls:
+  - Mark Completed  
+  - Cancel  
+  - Flag No Shows  
+
+---
+
+# Patient Portal
+
+Designed to improve patient accessibility and transparency.
+
+## Features:
+- Smart appointment scheduling:
+- Book appointments within hourly slots  
+- Available between 10 AM and 10 PM  
+
+- Conflict prevention:
+- Prevents double booking  
+- Prevents overbooking  
+- Prevents past-date selection  
+
+- Medical history access:
+- View diagnosis records  
+- Includes medicine dosage and duration  
+
+- Doctor transparency:
+- View doctor ratings  
+- Check specialties before booking  
+
+- Report export:
+- Download billing and medical summaries  
+- Export format: `.txt`
+
+---
+
+# Tech Stack
 
 | Component | Technology |
-| :--- | :--- |
-| **Frontend** | React.js (Vite), Tailwind CSS, Lucide React |
-| **Backend** | Node.js, Express.js |
-| **Database** | MySQL (Relational Data, Foreign Keys, ACID Transactions) |
-| **Auth** | JSON Web Tokens (JWT), Bcrypt, Twilio (OTP) |
-| **Tools** | Multer (File Uploads), REST API |
+|-----------|------------|
+| Frontend | React.js (Vite), Tailwind CSS, Lucide React |
+| Backend | Node.js, Express.js |
+| Database | MySQL (Relational Database, Foreign Keys, ACID Transactions) |
+| Authentication | JSON Web Tokens (JWT), Bcrypt |
+| Communication | EmailJS REST API |
+| File Uploads | Multer |
+| Hosting | Render |
 
 ---
+
+# Security Highlights
+
+- Role-Based Access Control (RBAC)  
+- JWT Authentication  
+- Bcrypt Password Hashing  
+- OTP-based Email Verification  
+- Transaction-safe MySQL Operations  
+
+---
+
+# Core System Modules
+
+- Authentication System  
+- Appointment Scheduling  
+- Medical Records Management  
+- Billing System  
+- Inventory Management  
+- Notification System  
+- Analytics Dashboard  
+
+---
+
+# Deployment
+
+Hosted using:
+
+- Render (Cloud Deployment)  
+- EmailJS REST API for communication  
+
+---
+
+# Screenshots
+
+(Add screenshots of your system here)
+
+## Doctor Dashboard
+![Doctor Dashboard](screenshots/doctor-dashboard.png)
+
+## Patient Portal
+![Patient Portal](screenshots/patient-portal.png)
+
+## Admin Console
+![Admin Console](screenshots/admin-console.png)
+
+---
+
+# Project Goals
+
+- Build a production-ready healthcare platform  
+- Demonstrate full-stack architecture design  
+- Implement secure authentication workflows  
+- Develop transactional healthcare systems  
+- Showcase scalable backend architecture  
+
+---
+
+# Author
+
+**Abhigyan**
+
+Full-stack developer with interests in scalable systems, real-world backend architecture, and production-grade application design.
