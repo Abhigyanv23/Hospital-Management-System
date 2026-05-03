@@ -3,23 +3,25 @@ const router = express.Router();
 const pool = require('../config/db');
 
 router.post('/prescriptions', async (req, res) => {
-    const { patient_id, doctor_id, appointment_id, diagnosis, notes, treatment_plan, medicines, deduct_inventory } = req.body;
+    // NEW: Added file_path to the destructured req.body
+    const { patient_id, doctor_id, appointment_id, diagnosis, notes, treatment_plan, medicines, deduct_inventory, file_path } = req.body;
 
-    console.log("👀 INCOMING DATA:", { medicines, deduct_inventory });
+    console.log("👀 INCOMING DATA:", { medicines, deduct_inventory, file_path });
     const connection = await pool.getConnection();
 
     try {
         await connection.beginTransaction();
 
         // 1. Create Medical Record
+        // NEW: Added file_path to the INSERT statement and the values array
         const [recordRes] = await connection.query(
-            'INSERT INTO MedicalRecord (patient_id, doctor_id, appointment_id, visit_date, diagnosis, notes, treatment_plan) VALUES (?, ?, ?, NOW(), ?, ?, ?)',
-            [patient_id, doctor_id, appointment_id || null, diagnosis, notes, treatment_plan]
+            'INSERT INTO MedicalRecord (patient_id, doctor_id, appointment_id, visit_date, diagnosis, notes, treatment_plan, file_path) VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)',
+            [patient_id, doctor_id, appointment_id || null, diagnosis, notes, treatment_plan, file_path]
         );
         
         const newRecordId = recordRes.insertId;
 
-        // --- NEW: Variables to track the pharmacy bill ---
+        // --- Variables to track the pharmacy bill ---
         let totalPharmacyBill = 0;
         let billDescriptionArray = [];
 
@@ -56,7 +58,7 @@ router.post('/prescriptions', async (req, res) => {
             }
         }
 
-        // --- 🔴 3. NEW: CREATE THE INVOICE ---
+        // --- 🔴 3. CREATE THE INVOICE ---
         if (deduct_inventory && totalPharmacyBill > 0) {
             const finalDescription = "Pharmacy Medicines: " + billDescriptionArray.join(", ");
             await connection.query(

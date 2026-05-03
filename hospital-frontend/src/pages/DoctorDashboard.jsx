@@ -303,9 +303,15 @@ const DoctorDashboard = ({ data, userId }) => {
                                             <h4 className="text-xl font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors">{rec.diagnosis}</h4>
                                             <p className="text-xs font-bold text-slate-400 uppercase mt-1">{rec.visit_date.split('T')[0]}</p>
                                         </div>
+                                        {/* CLOUDINARY URL FIX APPLIED HERE */}
                                         {rec.file_path && (
-                                            <a href={`https://hospital-management-system-z8ay.onrender.com${rec.file_path}`} target="_blank" rel="noreferrer" className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition">
-                                                📎 File
+                                            <a 
+                                                href={rec.file_path} 
+                                                target="_blank" 
+                                                rel="noreferrer" 
+                                                className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold hover:bg-indigo-50 transition flex items-center gap-1 shadow-sm"
+                                            >
+                                                📎 View Document
                                             </a>
                                         )}
                                     </div>
