@@ -316,19 +316,19 @@ const DoctorDashboard = ({ data, userId }) => {
                                         )}
                                     </div>
                                     <div className="grid grid-cols-2 gap-6 text-sm mb-4">
-                                        {/* --- RICH TEXT RENDERING --- */}
+                                        {/* --- RICH TEXT RENDERING WITH NULL FIX --- */}
                                         <div>
                                             <p className="text-xs font-bold text-amber-600 uppercase mb-1">Clinical Notes</p>
                                             <div 
                                                 className="text-slate-600 leading-relaxed text-sm [&>ul]:list-disc [&>ul]:ml-5 [&>ol]:list-decimal [&>ol]:ml-5 [&>p]:mb-2" 
-                                                dangerouslySetInnerHTML={{ __html: rec.notes }} 
+                                                dangerouslySetInnerHTML={{ __html: rec.notes || '' }} 
                                             />
                                         </div>
                                         <div>
                                             <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Treatment</p>
                                             <div 
                                                 className="text-slate-600 leading-relaxed text-sm [&>ul]:list-disc [&>ul]:ml-5 [&>ol]:list-decimal [&>ol]:ml-5 [&>p]:mb-2" 
-                                                dangerouslySetInnerHTML={{ __html: rec.treatment_plan }} 
+                                                dangerouslySetInnerHTML={{ __html: rec.treatment_plan || '' }} 
                                             />
                                         </div>
                                     </div>
