@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Trash2, Pill, AlertCircle, Upload, X, Clock, CheckSquare } from 'lucide-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css'; // Import Quill styles
 import Card from './Card';
 import { api } from '../services/api';
+
+// Define the toolbar options outside the component to prevent re-rendering issues
+const quillModules = {
+    toolbar: [
+        [{ 'list': 'bullet' }, { 'list': 'ordered' }]
+    ]
+};
 
 const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refreshTrigger }) => {
   const [diagnosis, setDiagnosis] = useState('');
@@ -17,7 +26,7 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
   const [medDuration, setMedDuration] = useState(''); 
   const [prescribedMeds, setPrescribedMeds] = useState([]);
 
-  // NEW: Checkbox State
+  // Checkbox State
   const [buyFromHospital, setBuyFromHospital] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,7 +114,7 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
         notes,
         treatment_plan: treatmentPlan,
         medicines: prescribedMeds,
-        deduct_inventory: buyFromHospital, // FIXED: Now matches the backend!
+        deduct_inventory: buyFromHospital,
         file_path: uploadedFilePath
       };
 
@@ -133,7 +142,18 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
 
         <div className="grid grid-cols-1 gap-3">
             <input type="text" placeholder="Diagnosis (e.g., Viral Fever)" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" required />
-            <textarea placeholder="Clinical Notes & Observations" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" rows="2" />
+            
+            {/* RICH TEXT EDITOR: Clinical Notes */}
+            <div className="bg-white border border-slate-300 rounded overflow-hidden focus-within:border-indigo-500">
+                <ReactQuill 
+                    theme="snow" 
+                    value={notes} 
+                    onChange={setNotes} 
+                    modules={quillModules}
+                    placeholder="Clinical Notes & Observations"
+                    className="h-32 mb-10" // mb-10 prevents text from hiding behind the box bottom
+                />
+            </div>
         </div>
 
         {/* --- FIXED UPLOAD BUTTON --- */}
@@ -212,7 +232,17 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
             )}
         </div>
 
-        <textarea placeholder="Additional Treatment Instructions..." value={treatmentPlan} onChange={(e) => setTreatmentPlan(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:border-indigo-500 outline-none" rows="2"/>
+        {/* RICH TEXT EDITOR: Treatment Plan */}
+        <div className="bg-white border border-slate-300 rounded overflow-hidden focus-within:border-indigo-500 mt-4">
+            <ReactQuill 
+                theme="snow" 
+                value={treatmentPlan} 
+                onChange={setTreatmentPlan} 
+                modules={quillModules}
+                placeholder="Additional Treatment Instructions..."
+                className="h-24 mb-10"
+            />
+        </div>
         
         {/* Inventory Checkbox */}
         <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
