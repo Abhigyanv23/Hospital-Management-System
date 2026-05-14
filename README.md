@@ -1,16 +1,16 @@
 # Pulse HMS — Hospital Management System
 
-&lt;p align="center"&gt;
-  &lt;img src="https://img.shields.io/badge/Status-Production--Ready-success" /&gt;
-  &lt;img src="https://img.shields.io/badge/Frontend-React.js-blue?logo=react" /&gt;
-  &lt;img src="https://img.shields.io/badge/Backend-Node.js-green?logo=node.js" /&gt;
-  &lt;img src="https://img.shields.io/badge/Database-MySQL-orange?logo=mysql" /&gt;
-  &lt;img src="https://img.shields.io/badge/Auth-JWT-black" /&gt;
-  &lt;img src="https://img.shields.io/badge/Hosted%20On-Render-purple" /&gt;
-  &lt;img src="https://img.shields.io/badge/License-MIT-lightgrey" /&gt;
-  &lt;img src="https://img.shields.io/badge/API-REST-orange" /&gt;
-  &lt;img src="https://img.shields.io/badge/Architecture-MVC-blue" /&gt;
-&lt;/p&gt;
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Production_Ready-success" alt="Status" />
+  <img src="https://img.shields.io/badge/Frontend-React.js-61DAFB?logo=react&logoColor=white" alt="React.js" />
+  <img src="https://img.shields.io/badge/Backend-Node.js-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Database-MySQL-4479A1?logo=mysql&logoColor=white" alt="MySQL" />
+  <img src="https://img.shields.io/badge/Auth-JWT-black" alt="JWT" />
+  <img src="https://img.shields.io/badge/Hosted_On-Render-7B3FE4" alt="Render" />
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="MIT License" />
+  <img src="https://img.shields.io/badge/API-REST-FF6C37" alt="REST API" />
+  <img src="https://img.shields.io/badge/Architecture-MVC-blue" alt="MVC" />
+</p>
 
 Pulse HMS is a production-grade, full-stack healthcare platform designed to streamline hospital operations. It implements secure authentication, transactional workflows, and role-based portals for **Doctors**, **Receptionists**, and **Patients**.
 
