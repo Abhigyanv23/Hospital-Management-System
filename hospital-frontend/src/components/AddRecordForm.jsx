@@ -136,12 +136,23 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
             <textarea placeholder="Clinical Notes & Observations" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" rows="2" />
         </div>
 
+        {/* --- FIXED UPLOAD BUTTON --- */}
         <div className="flex items-center gap-3">
-            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${selectedFile ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`}>
-                <Upload className="w-4 h-4" />
-                <span className="text-sm font-medium">{selectedFile ? 'Change File' : 'Attach X-Ray / Report'}</span>
-                <input type="file" className="hidden" onChange={handleFileChange} />
+            <label 
+                htmlFor="medical-upload"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${selectedFile ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+            >
+                <Upload className="w-4 h-4 pointer-events-none" />
+                <span className="text-sm font-medium pointer-events-none">{selectedFile ? 'Change File' : 'Attach X-Ray / Report'}</span>
             </label>
+            
+            <input 
+                id="medical-upload" 
+                type="file" 
+                className="hidden" 
+                onChange={handleFileChange} 
+            />
+
             {selectedFile && (
                 <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs text-slate-700 border border-slate-200">
                     <span className="truncate max-w-[150px]">{selectedFile.name}</span>
@@ -203,7 +214,7 @@ const AddRecordForm = ({ patient, doctorId, appointmentId, onRecordAdded, refres
 
         <textarea placeholder="Additional Treatment Instructions..." value={treatmentPlan} onChange={(e) => setTreatmentPlan(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:border-indigo-500 outline-none" rows="2"/>
         
-        {/* NEW: Inventory Checkbox */}
+        {/* Inventory Checkbox */}
         <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
             <input 
                 type="checkbox" 
