@@ -187,13 +187,13 @@ Hosted using:
 ## Screenshots
 
 ### Doctor Dashboard
-![Doctor Dashboard](screenshots/doctor-dashboard.png)
+![Doctor Dashboard](Screenshots/Doctor_Dashboard.png)
 
 ### Patient Portal
 ![Patient Portal](Screenshots/Patient_Dashboard.png)
 
 ### Admin Console
-![Admin Console](screenshots/admin-console.png)
+![Admin Console](Screenshots/Admin_Dashboard.png)
 
 ---
 
