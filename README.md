@@ -190,7 +190,7 @@ Hosted using:
 ![Doctor Dashboard](screenshots/doctor-dashboard.png)
 
 ### Patient Portal
-![Patient Portal](screenshots/patient-portal.png)
+![Patient Portal](Screenshots/image copy 2.png)
 
 ### Admin Console
 ![Admin Console](screenshots/admin-console.png)
