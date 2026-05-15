@@ -16,6 +16,16 @@ Pulse HMS is a production-grade, full-stack healthcare platform designed to stre
 
 The system focuses on real-world hospital workflows such as appointment scheduling, billing, inventory tracking, prescription management, and digital medical records.
 
+## Live Demo
+
+[Visit Hospital Portal](https://hospital-portal-3ver.onrender.com)
+
+<p align="center">
+  <a href="https://hospital-portal-3ver.onrender.com">
+    <img src="https://img.shields.io/badge/Live_Demo-Open_Project-brightgreen?style=for-the-badge" />
+  </a>
+</p>
+
 ---
 
 ## Key Features
