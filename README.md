@@ -18,8 +18,6 @@ The system focuses on real-world hospital workflows such as appointment scheduli
 
 ## Live Demo
 
-[Visit Hospital Portal](https://hospital-portal-3ver.onrender.com)
-
 <p align="center">
   <a href="https://hospital-portal-3ver.onrender.com">
     <img src="https://img.shields.io/badge/Live_Demo-Open_Project-brightgreen?style=for-the-badge" />
