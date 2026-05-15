@@ -186,8 +186,6 @@ Hosted using:
 
 ## Screenshots
 
-*(Add screenshots of your system here)*
-
 ### Doctor Dashboard
 ![Doctor Dashboard](screenshots/doctor-dashboard.png)
 
