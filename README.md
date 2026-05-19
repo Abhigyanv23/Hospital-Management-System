@@ -24,20 +24,6 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 
 ---
 
-##  Table of Contents
-
-- [ Key Features](#-key-features)
-- [ Tech Stack](#️-tech-stack)
-- [ Security Architecture](#️-security-architecture)
-- [ Quick Start](#-quick-start)
-- [ Project Structure](#-project-structure)
-- [ Database Schema](#️-database-schema)
-- [ API Endpoints](#-api-endpoints)
-- [ Screenshots](#-screenshots)
-- [ Project Goals](#-project-goals)
-
----
-
 ##  Key Features
 
 ###  Architecture, Security & Infrastructure
