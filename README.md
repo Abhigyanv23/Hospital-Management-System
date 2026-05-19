@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏥 Pulse HMS — Hospital Management System
+#  Pulse HMS — Hospital Management System
 
 <p>
   <img src="https://img.shields.io/badge/Status-Production_Ready-success" alt="Status" />
@@ -24,25 +24,23 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
-- [✨ Key Features](#-key-features)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🛡️ Security Architecture](#️-security-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [📁 Project Structure](#-project-structure)
-- [🗄️ Database Schema](#️-database-schema)
-- [🔌 API Endpoints](#-api-endpoints)
-- [📸 Screenshots](#-screenshots)
-- [🎯 Project Goals](#-project-goals)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [ Key Features](#-key-features)
+- [ Tech Stack](#️-tech-stack)
+- [ Security Architecture](#️-security-architecture)
+- [ Quick Start](#-quick-start)
+- [ Project Structure](#-project-structure)
+- [ Database Schema](#️-database-schema)
+- [ API Endpoints](#-api-endpoints)
+- [ Screenshots](#-screenshots)
+- [ Project Goals](#-project-goals)
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
-### 🏗️ Architecture, Security & Infrastructure
+###  Architecture, Security & Infrastructure
 
 | Feature | Description |
 |---|---|
@@ -52,7 +50,7 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 | Universal Notification System | Dynamic templates for OTPs, password resets, welcome emails, and appointment reminders |
 | Enterprise Security | JWT sessions, Bcrypt hashing, time-limited OTPs, secure password recovery |
 
-### 👨‍⚕️ Doctor Portal
+###  Doctor Portal
 
 - **Live analytics dashboard** — Real-time ratings, patient volume, completed visits
 - **Smart prescription system** — Auto-deducts medicines from inventory via WebSockets
@@ -61,14 +59,14 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 - **Patient directory** — Searchable history with quick access to records
 - **Compliance tracking** — 0–100 score tracking patient adherence
 
-### 🗂️ Receptionist (Admin) Console
+###  Receptionist (Admin) Console
 
 - **Operational analytics** — Peak visiting hour charts for staffing optimization
 - **Inventory management** — Real-time pharmacy stock with automatic prescription deductions and low-stock alerts
 - **Billing system** — Invoice generation with payment status tracking (Paid / Unpaid)
 - **Appointment manager** — Global scheduling with controls: Mark Completed, Cancel, Flag No Shows
 
-### 🧑‍💼 Patient Portal
+###  Patient Portal
 
 - **Smart appointment scheduling** — Hourly slots (10 AM–10 PM) with AI-assisted symptom input
 - **Conflict prevention** — Blocks double-booking, overbooking, and past-date selection
@@ -78,7 +76,7 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Component | Technology |
 |---|---|
@@ -93,7 +91,7 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 
 ---
 
-## 🛡️ Security Architecture
+##  Security Architecture
 
 | Layer | Implementation |
 |---|---|
@@ -110,7 +108,7 @@ A production-grade, full-stack healthcare platform designed to streamline hospit
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -198,7 +196,7 @@ npm run dev
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ### Frontend (`hospital-frontend`)
 
@@ -258,7 +256,7 @@ npm run dev
 
 ---
 
-## 🗄️ Database Schema
+##  Database Schema
 
 ### Entity-Relationship Overview
 
@@ -586,7 +584,7 @@ ORDER BY mr.visit_date DESC;
 
 ---
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 | Category | Base Route | Description |
 |---|---|---|
@@ -602,7 +600,7 @@ ORDER BY mr.visit_date DESC;
 
 ---
 
-## 📸 Screenshots
+##  Screenshots
 
 ### Doctor Dashboard
 ![Doctor Dashboard](Screenshots/Doctor_Dashboard.png)
@@ -615,58 +613,22 @@ ORDER BY mr.visit_date DESC;
 
 ---
 
-## 🎯 Project Goals
+##  Project Goals
 
 - Build a production-ready healthcare platform
 - Demonstrate full-stack architecture design
 - Implement secure authentication workflows
 - Develop transactional healthcare systems
 - Showcase scalable backend architecture
-
+- 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/AmazingFeature`
-3. Commit your changes: `git commit -m 'feat: add amazing feature'`
-4. Push to the branch: `git push origin feature/AmazingFeature`
-5. Open a Pull Request
-
-Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Author
+##  Author
 
 **Abhigyan** — Full-stack developer with interests in scalable systems, real-world backend architecture, and production-grade application design.
 
-- GitHub: [@yourusername](https://github.com/yourusername)
-- Project: [pulse-hms](https://github.com/yourusername/pulse-hms)
+- GitHub: [@yourusername](https://github.com/Abhigyanv23)
+- Project: [pulse-hms](https://github.com/Abhigyanv23/Hospital-Management-System)
 - Live Demo: [hospital-portal-3ver.onrender.com](https://hospital-portal-3ver.onrender.com)
 
 ---
-
-## 🙏 Acknowledgments
-
-- [React 19 Documentation](https://react.dev/)
-- [Vite](https://vitejs.dev/) — blazing fast dev experience
-- [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
-- [Socket.io](https://socket.io/) — real-time capabilities
-- [EmailJS](https://www.emailjs.com/) — cloud-resilient email delivery
-- [Cloudinary](https://cloudinary.com/) — secure media storage
-- [Render](https://render.com/) — seamless cloud deployment
-
----
-
-<div align="center">
-  <sub>Built with ❤️ by Abhigyan</sub>
-</div>
