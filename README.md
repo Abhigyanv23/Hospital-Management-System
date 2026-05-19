@@ -613,8 +613,4 @@ ORDER BY mr.visit_date DESC;
 
 **Abhigyan** — Full-stack developer with interests in scalable systems, real-world backend architecture, and production-grade application design.
 
-- GitHub: [@yourusername](https://github.com/Abhigyanv23)
-- Project: [pulse-hms](https://github.com/Abhigyanv23/Hospital-Management-System)
-- Live Demo: [hospital-portal-3ver.onrender.com](https://hospital-portal-3ver.onrender.com)
-
 ---
